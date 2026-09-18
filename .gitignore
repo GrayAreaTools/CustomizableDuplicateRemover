@@ -1,0 +1,20 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Run artifacts. Plans, reports, and the audit log are per-install state, not source.
+plugin/reports/
+
+# Claude Code developer tooling — not relevant to end users.
+CLAUDE.md
+.claude/
+
+# Internal development artifacts. Kept locally, not published.
+docs/plan.md
+docs/architecture/
+
+# Local credentials. Never commit these — see .env.example for the expected keys.
+.env
+.env.*
+!.env.example

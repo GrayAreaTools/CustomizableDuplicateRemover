@@ -1,0 +1,383 @@
+/* Customizable Duplicate Remover page.
+   Stash ships a dark UI by default but supports a light theme, so colours are derived
+   from currentColor and translucent overlays rather than hardcoded, which keeps the page
+   legible under both without fighting Stash's own variables. */
+
+.cdr-page {
+  padding: 1.5rem 1rem 4rem;
+}
+
+.cdr-sub {
+  opacity: 0.7;
+  font-size: 0.9rem;
+  max-width: 60rem;
+}
+
+.cdr-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+}
+
+.cdr-control {
+  margin-bottom: 0;
+  min-width: 12rem;
+}
+
+.cdr-control.cdr-narrow {
+  min-width: 8rem;
+  max-width: 10rem;
+}
+
+.cdr-actions {
+  display: flex;
+  gap: 0.5rem;
+  min-width: auto;
+}
+
+.cdr-busy {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0;
+  opacity: 0.85;
+}
+
+.cdr-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 6px;
+  background: rgba(128, 128, 128, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  backdrop-filter: blur(6px);
+}
+
+.cdr-count {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cdr-muted {
+  opacity: 0.65;
+}
+
+.cdr-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.cdr-group {
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.cdr-group > header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  align-items: baseline;
+  padding: 0.55rem 0.75rem;
+  background: rgba(128, 128, 128, 0.1);
+  border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+.cdr-group > header h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.cdr-why {
+  font-size: 0.82rem;
+  opacity: 0.7;
+}
+
+.cdr-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+}
+
+/* Status is always spelled out in the badge text as well as coloured, so the meaning
+   does not depend on colour perception.
+
+   Each badge carries its own background rather than only a foreground colour. Stash
+   supports both a dark and a light theme, and no single foreground reaches the 4.5:1
+   minimum against both #202b33 and #ffffff — the whole sRGB cube was checked, and none
+   exists. Pinning both colours makes the page theme irrelevant. Ratios: 9.36:1, 10.16:1,
+   9.58:1. */
+.cdr-badge.cdr-resolved { color: #08351f; background: #a7e3c2; }
+.cdr-badge.cdr-ambiguous,
+.cdr-badge.cdr-skipped,
+.cdr-badge.cdr-protected { color: #3d2b00; background: #f5dd9a; }
+.cdr-badge.cdr-executed { color: #2b2b2b; background: #d6d6d6; }
+.cdr-badge.cdr-failed,
+.cdr-badge.cdr-partial { color: #4a1509; background: #f7c3b5; }
+
+.cdr-scroll {
+  overflow-x: auto;
+}
+
+.cdr-table {
+  width: 100%;
+  min-width: 56rem;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.cdr-table th,
+.cdr-table td {
+  padding: 0.35rem 0.55rem;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.22);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.cdr-table th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.65;
+  font-weight: 600;
+  text-align: left;
+}
+
+.cdr-table td.cdr-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.cdr-table td.cdr-path {
+  white-space: normal;
+  word-break: break-all;
+  min-width: 16rem;
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
+
+.cdr-table td.cdr-detail {
+  white-space: normal;
+  font-size: 0.78rem;
+  opacity: 0.75;
+  max-width: 22rem;
+}
+
+.cdr-disp {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* Row tint is redundant reinforcement only — the KEEP / DELETE / BLOCKED word plus
+   font-weight already carry the meaning, so the disposition text inherits currentColor
+   and stays legible in either theme. Tinting the text as well could not pass AA. */
+.cdr-table tr.cdr-keep { background: rgba(76, 175, 125, 0.14); }
+.cdr-table tr.cdr-remove { background: rgba(229, 112, 90, 0.14); }
+.cdr-table tr.cdr-blocked { background: rgba(217, 165, 33, 0.14); }
+.cdr-table tr.cdr-done { opacity: 0.65; }
+.cdr-table tr.cdr-done .cdr-disp { text-decoration: line-through; }
+
+/* The checkbox that authorises a permanent deletion should not be a 14px target. */
+.cdr-table .form-check {
+  margin: 0;
+  min-height: auto;
+}
+
+.cdr-table .form-check-input {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+@media (max-width: 768px) {
+  .cdr-toolbar {
+    position: static;
+  }
+  .cdr-page :is(a, button, input, select, [tabindex]),
+  .cdr-group {
+    scroll-margin-top: 0;
+  }
+  .cdr-confirm {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+/* -- settings panel ------------------------------------------------------- */
+
+.cdr-settings {
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 6px;
+  padding: 1rem 1.1rem 1.2rem;
+  margin-bottom: 1.25rem;
+  background: rgba(128, 128, 128, 0.06);
+}
+
+.cdr-settings h4 {
+  margin: 0 0 0.3rem;
+  font-size: 1.05rem;
+}
+
+.cdr-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.cdr-field-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.15rem;
+}
+
+.cdr-field-help {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  margin: 0 0 0.5rem;
+}
+
+.cdr-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(128, 128, 128, 0.25);
+}
+
+/* -- reorderable list ---------------------------------------------------- */
+
+.cdr-reorder-list {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  counter-reset: none;
+}
+
+.cdr-reorder-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  margin-bottom: 0.25rem;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 4px;
+  background: rgba(128, 128, 128, 0.09);
+  font-size: 0.85rem;
+  cursor: grab;
+}
+
+.cdr-reorder-item:active {
+  cursor: grabbing;
+}
+
+.cdr-reorder-item.cdr-dragging {
+  opacity: 0.45;
+}
+
+/* A solid top border marks the drop position without relying on colour alone. */
+.cdr-reorder-item.cdr-dragover {
+  border-top-width: 3px;
+  border-top-color: currentColor;
+}
+
+.cdr-grip {
+  opacity: 0.5;
+  cursor: grab;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.cdr-rank-num {
+  min-width: 1.4rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+  font-size: 0.8rem;
+}
+
+.cdr-reorder-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cdr-reorder-actions {
+  display: flex;
+  gap: 0.3rem;
+  flex: 0 0 auto;
+}
+
+/* At least 24x24 per WCAG 2.5.8; these were 28x21 and the 0.2rem gap was too tight for
+   the spacing exception to apply. */
+.cdr-reorder-actions .btn {
+  padding: 0 0.4rem;
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+}
+
+/* A two-tone ring, because `currentColor` is inherited from the button text and went
+   near-white against Stash's light theme. */
+.cdr-page :is(a, button, input, select, [tabindex]):focus-visible,
+.cdr-scroll:focus-visible {
+  outline: 2px solid #4d9fff;
+  outline-offset: 1px;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.45);
+}
+
+/* The sticky toolbar is ~3rem tall and would otherwise sit on top of whatever the
+   keyboard just focused (WCAG 2.4.11). */
+.cdr-page :is(a, button, input, select, [tabindex]),
+.cdr-group {
+  scroll-margin-top: 4rem;
+}
+
+.cdr-add-entry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.cdr-add-entry .form-control {
+  max-width: 14rem;
+}
+
+/* Visually hidden but announced by screen readers, for the reorder live region. */
+.cdr-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 576px) {
+  .cdr-settings-grid {
+    grid-template-columns: 1fr;
+  }
+  .cdr-reorder-item {
+    flex-wrap: wrap;
+  }
+}

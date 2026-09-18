@@ -1,0 +1,170 @@
+name: Customizable Duplicate Remover
+description: >-
+  Resolves phash duplicate groups with a configurable ranking policy that treats codec
+  as a first-class key, so an HEVC copy can be kept over a larger H.264 one. Plans
+  first, deletes only after review.
+version: 0.1.0
+url: https://github.com/GrayAreaTools/CustomizableDuplicateRemover
+
+ui:
+  javascript:
+    - CustomizableDuplicateRemover.js
+  css:
+    - CustomizableDuplicateRemover.css
+  assets:
+    # Only the reports directory. Mapping "/" would publish main.py, every plan file,
+    # and audit.jsonl - which together list the absolute path of every file in the
+    # library plus the deletion history - to anyone who can reach the Stash UI.
+    /reports: ./reports
+
+settings:
+  rankOrder:
+    displayName: Rank Order
+    description: >-
+      Ordered rank keys, highest priority first. Keys: codec, resolution,
+      resolution_asc, bitrate, bitrate_asc, size, size_asc, framerate, duration, age,
+      age_desc, audio_codec, path_priority, organized. Default codec,resolution,bitrate,size,age
+      keeps a 1080p HEVC file over a 4K H.264 one.
+    type: STRING
+  codecPreference:
+    displayName: Codec Preference
+    description: >-
+      Video codecs from most to least preferred. Use ffmpeg names as Stash reports them
+      (hevc, not h265 — aliases are accepted). Default av1,hevc,h264,vp9,mpeg4,vc1,wmv3,msmpeg4v3,mpeg2video
+    type: STRING
+  audioCodecPreference:
+    displayName: Audio Codec Preference
+    description: Only used when audio_codec appears in Rank Order. Default opus,aac,ac3,mp3
+    type: STRING
+  tieBreaker:
+    displayName: Tie Breaker
+    description: >-
+      What to do when every rank key ties. One of skip (default, leaves the group for
+      manual review), smallest_of_highest_resolution, largest_of_highest_resolution,
+      smallest, largest, oldest, newest.
+    type: STRING
+  phashDistance:
+    displayName: Phash Distance
+    description: 0 exact (default), 4 high, 8 medium, 10 low. Raise this last, not first.
+    type: NUMBER
+  durationDiff:
+    displayName: Duration Difference
+    description: >-
+      Maximum seconds between file durations for phash matching, passed to Stash.
+      Default 1.
+    type: NUMBER
+  durationTolerance:
+    displayName: Duration Tolerance
+    description: >-
+      G_DURATION. Keeper and loser durations must agree within this many seconds, which
+      stops a truncated encode from replacing a complete file. Default 1.
+    type: NUMBER
+  qualityFloorRatio:
+    displayName: Quality Floor Ratio
+    description: >-
+      G_QUALITY_FLOOR. Minimum ratio of keeper to loser bits-per-pixel-per-frame when
+      both use the same codec. Default 0.35.
+    type: NUMBER
+  qualityFloorRatioCrossCodec:
+    displayName: Quality Floor Ratio (Cross Codec)
+    description: >-
+      As above but when the keeper uses a better-ranked codec. Lower because HEVC needs
+      roughly half H.264's bitrate for comparable quality. Default 0.15.
+    type: NUMBER
+  protectedPaths:
+    displayName: Protected Paths
+    description: >-
+      Comma-separated path prefixes that are never deleted, e.g.
+      /media/originals/,/mnt/user/keep/
+    type: STRING
+  preferredPaths:
+    displayName: Preferred Paths
+    description: >-
+      Comma-separated path prefixes, most preferred first. Only used when path_priority
+      appears in Rank Order.
+    type: STRING
+  metadataPolicy:
+    displayName: Metadata Policy
+    description: >-
+      What to do when a losing scene has tags, performers, ratings, or markers the
+      keeper lacks. merge (default) folds them into the keeper first, skip leaves the
+      group alone, ignore discards them.
+    type: STRING
+  maxDeletionsPerRun:
+    displayName: Max Deletions Per Run
+    description: >-
+      G_RUN_CAP. A plan exceeding this deletes nothing at all. Start low. Default 100.
+    type: NUMBER
+  maxFractionOfLibrary:
+    displayName: Max Fraction Of Library
+    description: >-
+      G_RUN_CAP. Second cap, as a fraction of total scenes. Default 0.05.
+    type: NUMBER
+  applyTags:
+    displayName: Apply Review Tags
+    description: >-
+      Tag scenes with "CDR: Keep", "CDR: Delete", and "CDR: Review" during planning so
+      the review can be done by filtering in the Stash UI. Off by default: tagging
+      updates scenes, which fires every other plugin's Scene.Update.Post hooks.
+    type: BOOLEAN
+  confirmDestructive:
+    displayName: Confirm Destructive Operations
+    description: >-
+      G_CONFIRM. Must be on before any task will delete a file. Leave it off until a
+      plan report looks correct.
+    type: BOOLEAN
+  planRetention:
+    displayName: Plans To Keep
+    description: >-
+      How many plans (and their HTML/CSV reports) to keep. Older ones are pruned each
+      time a new plan is written. The audit log is never pruned. Default 5.
+    type: NUMBER
+  reportDir:
+    displayName: Report Directory
+    description: >-
+      Where plans, reports, and the audit log are written. Defaults to a "reports"
+      folder inside the plugin directory, which the plugin page reads from.
+    type: STRING
+
+exec:
+  - python
+  - "{pluginDir}/main.py"
+interface: raw
+errLog: info
+
+tasks:
+  - name: Plan
+    description: >-
+      Read-only. Finds duplicate groups, picks a keeper per group, and writes a review
+      report. Deletes nothing.
+    defaultArgs:
+      mode: plan
+  - name: Execute Plan
+    description: >-
+      Applies the most recent plan. Re-checks every guard rail and requires
+      Confirm Destructive Operations to be on.
+    defaultArgs:
+      mode: execute
+  - name: Plan and Execute
+    description: >-
+      Plans and immediately applies, for an unattended pass once the policy is trusted.
+      Still requires Confirm Destructive Operations.
+    defaultArgs:
+      mode: plan_execute
+  - name: Clear Tags
+    description: Removes the CDR review tags from every scene.
+    defaultArgs:
+      mode: clear_tags
+  - name: Purge Old Plans
+    description: >-
+      Deletes all but the most recent plans and their reports, per Plans To Keep. The
+      audit log is never touched.
+    defaultArgs:
+      mode: purge_plans
+  - name: Purge All Plans
+    description: >-
+      Deletes every plan and report, so the page starts from nothing. Does not delete
+      files from your library and does not touch the audit log.
+    defaultArgs:
+      mode: purge_plans
+      keep: 0

@@ -41,6 +41,20 @@ from live state and refuses if the library changed since the plan was written.
 
 ## Install
 
+Settings → Plugins → **Add Source**, then:
+
+| Field | Value |
+|---|---|
+| Name | `GrayAreaTools` |
+| Source URL | `https://grayareatools.github.io/CustomizableDuplicateRemover/main/index.yml` |
+
+The plugin then appears under **Available Plugins** for install and updates. Note the URL
+is the `index.yml`, not the repository page — Stash reads a package list, and pointing it
+at the repo returns HTML, which fails with a YAML parse error.
+
+<details>
+<summary>Manual install instead</summary>
+
 The plugin directory is `plugins/` next to Stash's `config.yml`. In the official Docker
 image that is `/root/.stash/plugins/`, which on unRAID is whatever host path your
 container maps to `/root/.stash` (commonly `/mnt/user/appdata/stash/config`).
@@ -49,8 +63,11 @@ container maps to `/root/.stash` (commonly `/mnt/user/appdata/stash/config`).
 cp -r plugin /mnt/user/appdata/stash/config/plugins/CustomizableDuplicateRemover
 ```
 
-Then Settings → Plugins → **Reload Plugins**. The tasks appear under Settings → Tasks,
-and the page under Settings → Tools plus a "Dupes" entry in the main nav.
+Then Settings → Plugins → **Reload Plugins**.
+</details>
+
+The tasks appear under Settings → Tasks, and the page under Settings → Tools plus a
+"Dupes" entry in the main nav.
 
 No Python dependencies. The plugin talks to Stash over GraphQL with `urllib` from the
 standard library, so nothing needs installing inside the container.

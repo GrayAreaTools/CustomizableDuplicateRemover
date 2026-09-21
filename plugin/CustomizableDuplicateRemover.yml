@@ -1,8 +1,7 @@
 name: Customizable Duplicate Remover
-description: >-
-  Resolves phash duplicate groups with a configurable ranking policy that treats codec
-  as a first-class key, so an HEVC copy can be kept over a larger H.264 one. Plans
-  first, deletes only after review.
+# Single line on purpose: the source-index builder extracts this with a line-oriented
+# grep, so a folded scalar would publish a literal ">-" as the description.
+description: "Resolves phash duplicate groups with a configurable ranking policy that treats codec as a first-class key, so an HEVC copy can be kept over a larger H.264 one. Plans first, deletes only after review."
 version: 0.1.0
 url: https://github.com/GrayAreaTools/CustomizableDuplicateRemover
 

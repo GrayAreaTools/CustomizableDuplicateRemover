@@ -6,6 +6,9 @@ __pycache__/
 # Run artifacts. Plans, reports, and the audit log are per-install state, not source.
 plugin/reports/
 
+# Source index build output, produced by build_site.sh.
+_site/
+
 # Claude Code developer tooling — not relevant to end users.
 CLAUDE.md
 .claude/

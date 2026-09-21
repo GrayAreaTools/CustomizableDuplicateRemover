@@ -1,0 +1,67 @@
+name: Publish source index
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'plugin/**'
+      - 'build_site.sh'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A queued run publishes the newer index; cancelling in-progress would leave Pages
+# serving whichever run happened to finish last.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # build_site.sh reads git history for the version hash and date.
+          fetch-depth: 0
+
+      - name: Build index
+        run: |
+          chmod +x build_site.sh
+          ./build_site.sh "_site/${{ github.ref_name }}"
+
+      # Stash reports a malformed index only as an opaque YAML error in its UI, so
+      # the index is parsed here instead of after publishing.
+      - name: Verify index parses
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 - <<'PY'
+          import os, yaml
+          path = f"_site/{os.environ['BRANCH']}/index.yml"
+          entries = yaml.safe_load(open(path))
+          assert isinstance(entries, list) and entries, "index.yml is not a non-empty list"
+          for e in entries:
+              for key in ("id", "name", "metadata", "version", "date", "path", "sha256"):
+                  assert key in e, f"{e.get('id', '?')}: missing {key}"
+              desc = e["metadata"].get("description", "")
+              assert desc and not desc.startswith(">"), f"{e['id']}: description not extracted"
+          print(f"index.yml OK ({len(entries)} package(s))")
+          PY
+        env:
+          BRANCH: ${{ github.ref_name }}
+
+      - uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}main/index.yml
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

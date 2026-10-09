@@ -688,3 +688,15 @@ def test_quality_floor_normalises_aliases_in_the_label(config):
     # x265 and hevc are the same codec, so this is same-codec, not an upgrade.
     assert verdict.context["comparison"] == "same-codec"
     assert verdict.context["keeper_codec"] == "hevc"
+
+
+def test_metadata_requires_a_merge_when_only_organized_differs(config):
+    """Regression: organized alone raised no merge, so the flag was dropped."""
+    keeper = make_scene("10")
+    loser = make_scene("20", organized=True)
+
+    verdict = metadata_preserved(keeper, loser, config)
+
+    assert verdict.allowed
+    assert verdict.context["merge_required"] is True
+    assert verdict.context["lost"] == {"organized": True}

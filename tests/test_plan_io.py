@@ -311,3 +311,18 @@ def test_round_trip_preserves_identity_metadata(config):
     restored_scene = restored.groups[0].losers[0].candidate.scene
 
     assert restored_scene == scene
+
+
+def test_scene_from_an_older_plan_loads_with_empty_identity_fields(config):
+    """Plans written by 0.1.0 have none of the identity keys."""
+    raw = plan_to_dict(sample_plan(config))
+    for group in raw["groups"]:
+        for entry in group["candidates"]:
+            for key in ("studioId", "code", "date", "details", "director", "stashIds"):
+                entry["scene"].pop(key, None)
+
+    scene = plan_from_dict(raw).groups[0].losers[0].candidate.scene
+
+    assert scene.stash_ids == frozenset()
+    assert scene.studio_id is None
+    assert not scene.is_identified

@@ -5,6 +5,15 @@ Notable changes to this plugin. The format follows
 [Semantic Versioning](https://semver.org/). The published index appends the short
 commit hash to each version, e.g. `0.2.0-3da02d5`.
 
+## [0.2.1] - 2026-10-09
+
+### Fixed
+
+- `G_STASH_ID_CONFLICT` now also compares losers against each other. Two losers linked
+  to different stash IDs on the same endpoint would make the keeper's merge fail mid-run
+  (Stash rejects two IDs per endpoint), leaving the group partially applied. The code
+  change shipped in 0.2.0; this entry records the failure it prevents.
+
 ## [0.2.0] - 2026-10-09
 
 ### Fixed

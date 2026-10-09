@@ -151,3 +151,28 @@ def test_loser_scalar_filling_a_gap_is_reported():
     loser = make_scene("20", director="D")
 
     assert loser.has_metadata_absent_from(keeper) == {"director": "D"}
+
+
+# organized: hand curation, carried regardless of identification
+
+def test_merge_values_organized_only_difference_sets_keeper_organized():
+    keeper = make_scene("10")
+    loser = make_scene("20", organized=True)
+
+    assert loser.has_metadata_absent_from(keeper) == {"organized": True}
+    assert merge_values(keeper, [loser]) == {"id": "10", "organized": True}
+
+
+def test_merge_values_leaves_an_already_organized_keeper_alone():
+    keeper = make_scene("10", organized=True)
+    loser = make_scene("20", organized=True)
+
+    assert loser.has_metadata_absent_from(keeper) == {}
+    assert merge_values(keeper, [loser]) == {"id": "10"}
+
+
+def test_merge_values_never_clears_organized_on_the_keeper():
+    keeper = make_scene("10", organized=True)
+    loser = make_scene("20", organized=False, tag_ids=["7"])
+
+    assert "organized" not in merge_values(keeper, [loser])

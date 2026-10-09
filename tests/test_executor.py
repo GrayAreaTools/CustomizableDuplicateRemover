@@ -388,6 +388,40 @@ def test_execution_blocks_a_stash_id_conflict_that_appeared_after_planning(audit
     assert client.deleted_files == []
 
 
+def test_organized_only_loser_is_merged_not_just_destroyed(audit, confirmed):
+    """Regression: with organized as the only difference the plugin saw nothing to merge,
+    destroyed the loser with scenesDestroy, and the flag was lost."""
+    scenes = [
+        raw_scene("10", [raw_file("1", codec="hevc", bit_rate=4_000_000)]),
+        raw_scene("20", [raw_file("2", codec="h264", bit_rate=8_000_000)], organized=True),
+    ]
+    plan, fs = plan_for(scenes, confirmed)
+    client = FakeClient(scenes)
+
+    Executor(client, confirmed, audit, fs, LIBRARY).execute(plan)
+
+    assert len(client.merges) == 1
+    assert client.merges[0]["values"] == {"id": "10", "organized": True}
+    assert client.destroyed == []
+    assert client.deleted_files == ["2"]
+
+
+def test_organized_keeper_needs_no_merge(audit, confirmed):
+    scenes = [
+        raw_scene("10", [raw_file("1", codec="hevc", bit_rate=4_000_000)], organized=True),
+        raw_scene("20", [raw_file("2", codec="h264", bit_rate=8_000_000)], organized=True),
+    ]
+    plan, fs = plan_for(scenes, confirmed)
+    client = FakeClient(scenes)
+
+    Executor(client, confirmed, audit, fs, LIBRARY).execute(plan)
+
+    assert client.merges == []
+    assert client.destroyed == [
+        {"ids": ["20"], "delete_file": True, "delete_generated": True}
+    ]
+
+
 def test_merge_values_union_preserves_the_keepers_own_metadata(audit, confirmed):
     """A merge must never overwrite something set on the file being kept."""
     scenes = [

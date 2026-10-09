@@ -118,6 +118,8 @@ class SceneInfo:
             lost["play_count"] = self.play_count
         if self.marker_count > 0:
             lost["marker_count"] = self.marker_count
+        if self.organized and not other.organized:
+            lost["organized"] = True
         if self.stash_ids - other.stash_ids:
             lost["stash_ids"] = sorted(f"{e}#{s}" for e, s in self.stash_ids - other.stash_ids)
         for attr in IDENTITY_SCALARS:
@@ -184,7 +186,8 @@ def merge_values(keeper: "SceneInfo", sources: "list[SceneInfo]") -> dict:
             value = next((getattr(s, attr) for s in sources if getattr(s, attr)), None)
             if value:
                 values[field_name] = value
-    if authority is not None and authority.organized and not keeper.organized:
+    # Organized is curation the operator did by hand; deleting a copy must not undo it.
+    if not keeper.organized and any(s.organized for s in sources):
         values["organized"] = True
 
     return values

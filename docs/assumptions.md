@@ -184,7 +184,7 @@ Non-obvious decisions and the reasoning behind them.
 
 - **Assumption:** When a stash-box identified scene is merged into an unidentified
   keeper, the identified scene's title, studio, code, date, details and director replace
-  the keeper's, and `organized` is carried over.
+  the keeper's.
 - **Why:** The codec-first ranking usually keeps an unidentified re-encode whose title
   is a filename. Gap-filling alone would keep that filename and discard the curated
   title. With no identification on either side, or on both, the keeper's values are
@@ -205,5 +205,13 @@ Non-obvious decisions and the reasoning behind them.
   `OVERRIDABLE_SETTINGS`.
 - **Why:** Lowering it is what lets short clips be deleted against unrelated scenes, so
   it belongs with the other rail thresholds that only the saved settings can change.
+- **Recorded by:** Claude
+- **Date:** 2026-10-09
+
+- **Assumption:** A merge sets the keeper `organized` whenever any merged source was
+  organized, whether or not either scene is identified. It never clears the flag.
+- **Why:** Organized marks review the operator did by hand. Before this, a loser whose
+  only difference was the flag reported nothing to merge, was destroyed outright, and
+  the flag was lost with it.
 - **Recorded by:** Claude
 - **Date:** 2026-10-09

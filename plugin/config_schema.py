@@ -54,6 +54,7 @@ DEFAULTS: dict[str, Any] = {
     "phashDistance": 0,
     "durationDiff": 1.0,
     "durationTolerance": 1.0,
+    "minDuration": 60.0,
     "qualityFloorRatio": 0.35,
     "qualityFloorRatioCrossCodec": 0.15,
     "protectedPaths": "",
@@ -236,6 +237,7 @@ class Config:
     phash_distance: int
     duration_diff: float
     duration_tolerance: float
+    min_duration: float
     quality_floor_ratio: float
     quality_floor_ratio_cross_codec: float
     protected_paths: tuple[str, ...]
@@ -258,6 +260,7 @@ class Config:
             "phashDistance": self.phash_distance,
             "durationDiff": self.duration_diff,
             "durationTolerance": self.duration_tolerance,
+            "minDuration": self.min_duration,
             "qualityFloorRatio": self.quality_floor_ratio,
             "qualityFloorRatioCrossCodec": self.quality_floor_ratio_cross_codec,
             "protectedPaths": list(self.protected_paths),
@@ -355,6 +358,10 @@ def parse_config(raw: Optional[dict], *, default_report_dir: str = "") -> Config
         duration_tolerance=_parse_number(
             "durationTolerance", settings.get("durationTolerance"),
             DEFAULTS["durationTolerance"], minimum=0.0, maximum=3600.0,
+        ),
+        min_duration=_parse_number(
+            "minDuration", settings.get("minDuration"),
+            DEFAULTS["minDuration"], minimum=0.0, maximum=3600.0,
         ),
         quality_floor_ratio=_parse_number(
             "qualityFloorRatio", settings.get("qualityFloorRatio"),

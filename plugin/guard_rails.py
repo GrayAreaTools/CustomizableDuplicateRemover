@@ -207,6 +207,59 @@ def duration_match(keeper: Candidate, loser: Candidate, config: Config) -> Verdi
     return _ok(rail, delta=delta)
 
 
+def min_duration(keeper: Candidate, loser: Candidate, config: Config) -> Verdict:
+    """`G_MIN_DURATION` — phash is meaningless on very short clips.
+
+    A few seconds of video hashes to almost nothing, so short clips "match" unrelated
+    scenes. Measured on this library: 1-13s clips paired with full scenes at distance 4.
+    """
+    rail = "G_MIN_DURATION"
+    shortest = min(keeper.file.duration, loser.file.duration)
+    if shortest < config.min_duration:
+        return _block(
+            rail,
+            f"Clip of {shortest:.1f}s is under the {config.min_duration:.0f}s minimum; "
+            "phash is unreliable at this length.",
+            shortest=shortest, minimum=config.min_duration,
+        )
+    return _ok(rail, shortest=shortest)
+
+
+def stash_id_conflict(
+    keeper_scene: SceneInfo,
+    loser_scene: SceneInfo,
+    peers: Sequence[SceneInfo] = (),
+) -> Verdict:
+    """`G_STASH_ID_CONFLICT` — never merge two scenes a stash-box says are different.
+
+    Same endpoint, different stash ID means either the files are different scenes or
+    one identification is wrong. Both need a human, not a deletion.
+
+    The loser is checked against every scene in the group, not only the keeper. An
+    unidentified keeper conflicts with nothing, so two losers linked to different
+    entries would otherwise both pass and be merged into one scene carrying both IDs.
+    """
+    rail = "G_STASH_ID_CONFLICT"
+    clashes: set[str] = set()
+    for other in (keeper_scene, *peers):
+        if other.id == loser_scene.id:
+            continue
+        other_ids = dict(other.stash_ids)
+        clashes.update(
+            f"{endpoint}: {other_ids[endpoint]} (scene {other.id}) vs {stash_id}"
+            for endpoint, stash_id in loser_scene.stash_ids
+            if endpoint in other_ids and other_ids[endpoint] != stash_id
+        )
+    if clashes:
+        return _block(
+            rail,
+            "Scenes are linked to different stash-box entries (review manually): "
+            + "; ".join(sorted(clashes)),
+            clashes=sorted(clashes),
+        )
+    return _ok(rail)
+
+
 def quality_floor(keeper: Candidate, loser: Candidate, config: Config) -> Verdict:
     """`G_QUALITY_FLOOR` — reject a keeper that looks like a botched transcode.
 
@@ -384,13 +437,20 @@ def evaluate_pair(
     config: Config,
     library_paths: Sequence[str],
     fs: FileSystem,
+    group_scenes: Sequence[SceneInfo] = (),
 ) -> list[Verdict]:
-    """Every rail that applies to deleting `loser` in favour of `keeper`."""
+    """Every rail that applies to deleting `loser` in favour of `keeper`.
+
+    `group_scenes` is every scene in the duplicate group, for the one rail whose answer
+    depends on more than the pair.
+    """
     return [
         keeper_intact(keeper, fs),
         library_scope(loser, library_paths, fs),
         protected_path(loser, config, fs),
         duration_match(keeper, loser, config),
+        min_duration(keeper, loser, config),
+        stash_id_conflict(keeper.scene, loser.scene, group_scenes),
         quality_floor(keeper, loser, config),
         metadata_preserved(keeper.scene, loser.scene, config),
     ]

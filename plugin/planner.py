@@ -102,10 +102,11 @@ def plan_group(
     # it must not be counted as doomed when deciding whether a scene keeps a file.
     verdicts_by_key: dict[str, list] = {}
     doomed: set[str] = set()
+    group_scenes = [c.scene for c in ranking.ordered]
     for candidate in ranking.ordered:
         if candidate is keeper:
             continue
-        verdicts = evaluate_pair(keeper, candidate, config, library_paths, fs)
+        verdicts = evaluate_pair(keeper, candidate, config, library_paths, fs, group_scenes)
         verdicts_by_key[candidate.key] = verdicts
         if all(v.allowed for v in verdicts):
             doomed.add(candidate.file.id)

@@ -93,7 +93,8 @@ def test_invalid_metadata_policy_is_rejected():
 
 
 @pytest.mark.parametrize(
-    "setting", ["phashDistance", "durationDiff", "qualityFloorRatio", "maxDeletionsPerRun"]
+    "setting",
+    ["phashDistance", "durationDiff", "minDuration", "qualityFloorRatio", "maxDeletionsPerRun"],
 )
 def test_numeric_settings_reject_non_numbers(setting):
     with pytest.raises(ParseError) as excinfo:
@@ -109,6 +110,8 @@ def test_numeric_settings_reject_non_numbers(setting):
         ("phashDistance", -1),
         ("phashDistance", 65),
         ("durationDiff", -0.5),
+        ("minDuration", -1),
+        ("minDuration", 3601),
         ("qualityFloorRatio", -1),
         ("maxFractionOfLibrary", 1.5),
         ("maxDeletionsPerRun", -5),

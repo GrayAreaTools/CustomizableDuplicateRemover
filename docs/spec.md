@@ -162,8 +162,10 @@ and continues to the next; it never aborts mid-group leaving a half-applied chan
 | `G_LIBRARY_SCOPE` | Every path targeted for deletion must lie beneath one of Stash's configured library paths, resolved through symlinks. | A malformed path, path traversal, or bad DB row causing deletion outside the library. |
 | `G_PROTECTED_PATHS` | Paths matching `protectedPaths` are never deleted; if a group's only viable keeper is protected, the group still resolves normally, but a protected loser downgrades the group to `SKIPPED`. | Losing irreplaceable originals kept in a specific folder. |
 | `G_DURATION` | Keeper and loser durations must agree within `durationTolerance` seconds (default 1.0). | Deleting a full-length file in favour of a truncated or partial encode that happens to share a phash. |
+| `G_MIN_DURATION` | The shorter of keeper and loser must be at least `minDuration` seconds (default 60). | Acting on a phash match between a clip of a few seconds and an unrelated full scene. |
+| `G_STASH_ID_CONFLICT` | The loser must not be linked to a different stash ID than any other scene in the group on the same endpoint. Checked against the whole group, because an unidentified keeper conflicts with nothing. | Merging two scenes a stash-box says are different, or merging two conflicting identifications into one scene. |
 | `G_QUALITY_FLOOR` | Keeper's bits-per-pixel-per-frame must be at least `qualityFloorRatio` (default 0.35) of the loser's, unless the keeper's codec ranks strictly better, in which case the allowance is `qualityFloorRatioCrossCodec` (default 0.15) to account for HEVC's efficiency. | Deleting a good file in favour of a botched, over-compressed transcode. |
-| `G_METADATA` | If a losing scene carries tags, performers, rating, `o_counter`, markers, or a URL the keeper lacks, apply `metadataPolicy`: `merge` (default, `sceneMerge` into the keeper first), `skip`, or `ignore`. | Silently losing curation work. |
+| `G_METADATA` | If a losing scene carries tags, performers, rating, `o_counter`, markers, a URL, stash IDs, or a title, studio, code, date, details or director the keeper lacks, apply `metadataPolicy`: `merge` (default, `sceneMerge` into the keeper first), `skip`, or `ignore`. | Silently losing curation work. |
 | `G_RUN_CAP` | A run deletes at most `maxDeletionsPerRun` files (default 100) and at most `maxFractionOfLibrary` of all files (default 0.05). Exceeding either aborts the run before any deletion. | A misconfigured rank order wiping a large share of the library in one pass. |
 | `G_PLAN_FRESH` | Execution recomputes a fingerprint over every candidate's `(file_id, size, mod_time, path)`. Any mismatch against the plan aborts that group. | Executing a stale plan after Unmanic, a rescan, or another tool has moved on. |
 | `G_CONFIRM` | Hard deletion requires both the explicit `Execute Plan` task and `confirmDestructive: true` in settings. Neither alone deletes anything. | An accidental click on the wrong task. |
@@ -238,6 +240,7 @@ accepted values — it never falls back to a default silently.
 | `phashDistance` | NUMBER | `0` | 0 exact, 4 high, 8 medium, 10 low |
 | `durationDiff` | NUMBER | `1.0` | Passed to `findDuplicateScenes` |
 | `durationTolerance` | NUMBER | `1.0` | `G_DURATION` |
+| `minDuration` | NUMBER | `60` | `G_MIN_DURATION`; not overridable from the page |
 | `qualityFloorRatio` | NUMBER | `0.35` | `G_QUALITY_FLOOR` |
 | `qualityFloorRatioCrossCodec` | NUMBER | `0.15` | `G_QUALITY_FLOOR` |
 | `protectedPaths` | STRING | *(empty)* | Comma-separated prefixes |

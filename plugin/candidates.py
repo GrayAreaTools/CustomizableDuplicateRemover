@@ -17,6 +17,12 @@ from models import Candidate, FileInfo, ParseError, SceneInfo
 SCENE_FRAGMENT = """
 id
 title
+code
+date
+details
+director
+studio { id }
+stash_ids { endpoint stash_id }
 organized
 o_counter
 rating100
@@ -168,6 +174,15 @@ def parse_scene(raw: dict) -> tuple[SceneInfo, list[FileInfo]]:
         play_count=_as_int(raw.get("play_count"), f"scene[{scene_id}].play_count"),
         file_ids=file_ids,
         primary_file_id=primary,
+        studio_id=str((raw.get("studio") or {}).get("id") or "") or None,
+        code=raw.get("code") or "",
+        date=raw.get("date") or None,
+        details=raw.get("details") or "",
+        director=raw.get("director") or "",
+        stash_ids=frozenset(
+            (str(s["endpoint"]), str(s["stash_id"]))
+            for s in (raw.get("stash_ids") or []) if s and s.get("endpoint") and s.get("stash_id")
+        ),
     )
     return scene, files
 

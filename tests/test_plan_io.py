@@ -81,7 +81,8 @@ def test_round_trip_preserves_verdicts(config):
     verdicts = restored.groups[0].candidates[1].verdicts
     assert {v.rail for v in verdicts} == {
         "G_KEEPER_INTACT", "G_LIBRARY_SCOPE", "G_PROTECTED_PATHS",
-        "G_DURATION", "G_QUALITY_FLOOR", "G_METADATA",
+        "G_DURATION", "G_MIN_DURATION", "G_STASH_ID_CONFLICT",
+        "G_QUALITY_FLOOR", "G_METADATA",
     }
     assert all(v.allowed for v in verdicts)
 
@@ -290,3 +291,23 @@ def test_outcome_round_trips(tmp_path, config):
     assert restored.groups[0].status is GroupStatus.EXECUTED
     assert restored.groups[0].losers == []
     assert restored.groups[0].acted_on[0].outcome == "deleted"
+
+
+def test_round_trip_preserves_identity_metadata(config):
+    """A plan executed later must still know what the losing scene is linked to."""
+    scene = make_scene(
+        "20", file_ids=["2"], title="Real Title", studio_id="s1", code="ABC-123",
+        date="2024-05-01", details="Synopsis.", director="Someone",
+        stash_ids=[("https://stashdb.org/graphql", "aaa"), ("https://theporndb.net/graphql", "z")],
+    )
+    keeper = Candidate(scene=make_scene("10", file_ids=["1"]),
+                       file=make_file("1", path="/media/library/a.mkv", codec="hevc"))
+    loser = Candidate(scene=scene,
+                      file=make_file("2", path="/media/library/b.mkv", codec="h264"))
+    fs = FakeFileSystem({keeper.file.path: keeper.file.size, loser.file.path: loser.file.size})
+    plan = build_plan("run1", [[keeper, loser]], config, LIBRARY, fs, library_file_count=500)
+
+    restored = plan_from_dict(json.loads(json.dumps(plan_to_dict(plan))))
+    restored_scene = restored.groups[0].losers[0].candidate.scene
+
+    assert restored_scene == scene

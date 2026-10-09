@@ -281,9 +281,11 @@ class Executor:
         approved: list[tuple[CandidatePlan, list[Verdict]]] = []
 
         # Re-evaluate the per-pair rails against live state before committing to anything.
+        group_scenes = [entry.candidate.scene for entry in group.candidates]
         for entry in targets:
             verdicts = evaluate_pair(
-                keeper, entry.candidate, self.config, self.library_paths, self.fs
+                keeper, entry.candidate, self.config, self.library_paths, self.fs,
+                group_scenes,
             )
             blocked = first_block(verdicts)
             if blocked:

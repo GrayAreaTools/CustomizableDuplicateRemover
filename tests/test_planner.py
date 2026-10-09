@@ -141,7 +141,7 @@ def test_plan_group_records_a_verdict_for_every_loser(config):
     plan = plan_group(0, [keeper, loser], config, LIBRARY, fs_for(keeper, loser))
 
     assert plan.candidates[0].verdicts == []  # keeper is not evaluated against itself
-    assert len(plan.candidates[1].verdicts) == 6
+    assert len(plan.candidates[1].verdicts) == 8
 
 
 def test_build_plan_aggregates_and_evaluates_the_cap(config):
@@ -306,3 +306,34 @@ def test_a_blocked_sibling_keeps_the_scene_alive(config):
 
     actions = {e.candidate.file.id: e.action for e in plan.losers}
     assert actions == {"11": Action.DELETE_FILE}
+
+
+def test_losers_linked_to_different_stash_entries_are_both_kept():
+    """Regression: an unidentified keeper conflicts with nothing, so each loser passed
+    the pairwise check and the group resolved into one scene carrying both links."""
+    from dataclasses import replace
+
+    stashdb = "https://stashdb.org/graphql"
+    keeper = candidate("1", "10", codec="hevc")
+    loser_a = candidate("2", "20", codec="h264")
+    loser_b = candidate("3", "30", codec="h264", size=999)
+    loser_a = replace(loser_a, scene=replace(loser_a.scene, stash_ids=frozenset({(stashdb, "aaa")})))
+    loser_b = replace(loser_b, scene=replace(loser_b.scene, stash_ids=frozenset({(stashdb, "bbb")})))
+
+    plan = plan_group(0, [keeper, loser_a, loser_b], parse_config({}), LIBRARY,
+                      fs_for(keeper, loser_a, loser_b))
+
+    assert plan.status is GroupStatus.SKIPPED
+    assert all(entry.action is None for entry in plan.candidates)
+
+
+def test_group_with_a_short_clip_is_skipped():
+    keeper = candidate("1", "10", codec="hevc", duration=8.0)
+    loser = candidate("2", "20", codec="h264", duration=8.0)
+
+    plan = plan_group(0, [keeper, loser], parse_config({}), LIBRARY, fs_for(keeper, loser))
+
+    assert plan.status is GroupStatus.SKIPPED
+    assert plan.candidates[1].verdicts and any(
+        v.rail == "G_MIN_DURATION" and not v.allowed for v in plan.candidates[1].verdicts
+    )

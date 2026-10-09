@@ -22,11 +22,15 @@ from guard_rails import (
     last_copy,
     library_scope,
     metadata_preserved,
+    min_duration,
     plan_fresh,
     protected_path,
     quality_floor,
     run_cap,
+    stash_id_conflict,
 )
+from dataclasses import replace
+
 from models import Candidate
 from ranking import rank_group
 
@@ -360,6 +364,125 @@ def test_metadata_counts_markers_as_loss(config):
     assert metadata_preserved(keeper, loser, config).context["lost"]["marker_count"] == 4
 
 
+# G_MIN_DURATION
+
+def test_min_duration_permits_full_length_files(config):
+    keeper = make_candidate("1", "10", duration=1800.0)
+    loser = make_candidate("2", "20", duration=1800.0)
+
+    verdict = min_duration(keeper, loser, config)
+
+    assert verdict.allowed
+    assert verdict.context["shortest"] == 1800.0
+
+
+def test_min_duration_blocks_short_loser(config):
+    """Measured case: a 1-13s clip phash-matching a full scene."""
+    keeper = make_candidate("1", "10", duration=1800.0)
+    loser = make_candidate("2", "20", duration=8.0)
+
+    verdict = min_duration(keeper, loser, config)
+
+    assert not verdict.allowed
+    assert verdict.rail == "G_MIN_DURATION"
+    assert "8.0s" in verdict.reason
+
+
+def test_min_duration_blocks_short_keeper(config):
+    keeper = make_candidate("1", "10", duration=5.0)
+    loser = make_candidate("2", "20", duration=1800.0)
+
+    assert not min_duration(keeper, loser, config).allowed
+
+
+def test_min_duration_boundary_is_inclusive(config):
+    keeper = make_candidate("1", "10", duration=60.0)
+    loser = make_candidate("2", "20", duration=60.0)
+
+    assert min_duration(keeper, loser, config).allowed
+
+
+def test_min_duration_is_configurable_and_zero_disables_it():
+    keeper = make_candidate("1", "10", duration=3.0)
+    loser = make_candidate("2", "20", duration=3.0)
+
+    assert not min_duration(keeper, loser, parse_config({"minDuration": 5})).allowed
+    assert min_duration(keeper, loser, parse_config({"minDuration": 0})).allowed
+
+
+def test_min_duration_default_is_sixty_seconds(config):
+    assert config.min_duration == 60.0
+
+
+# G_STASH_ID_CONFLICT
+
+STASHDB = "https://stashdb.org/graphql"
+TPDB = "https://theporndb.net/graphql"
+
+
+def test_stash_id_conflict_blocks_different_ids_on_the_same_endpoint():
+    keeper = make_scene("10", stash_ids=[(STASHDB, "aaa")])
+    loser = make_scene("20", stash_ids=[(STASHDB, "bbb")])
+
+    verdict = stash_id_conflict(keeper, loser)
+
+    assert not verdict.allowed
+    assert verdict.rail == "G_STASH_ID_CONFLICT"
+    assert "aaa" in verdict.reason and "bbb" in verdict.reason
+
+
+def test_stash_id_conflict_permits_the_same_id():
+    keeper = make_scene("10", stash_ids=[(STASHDB, "aaa")])
+    loser = make_scene("20", stash_ids=[(STASHDB, "aaa")])
+
+    assert stash_id_conflict(keeper, loser).allowed
+
+
+def test_stash_id_conflict_permits_different_endpoints():
+    keeper = make_scene("10", stash_ids=[(STASHDB, "aaa")])
+    loser = make_scene("20", stash_ids=[(TPDB, "zzz")])
+
+    assert stash_id_conflict(keeper, loser).allowed
+
+
+def test_stash_id_conflict_permits_unidentified_scenes():
+    assert stash_id_conflict(make_scene("10"), make_scene("20", stash_ids=[(STASHDB, "a")])).allowed
+    assert stash_id_conflict(make_scene("10"), make_scene("20")).allowed
+
+
+def test_stash_id_conflict_ignores_files_of_the_same_scene():
+    scene = make_scene("10", file_ids=["1", "2"], stash_ids=[(STASHDB, "aaa")])
+
+    assert stash_id_conflict(scene, scene).allowed
+
+
+def test_stash_id_conflict_checks_the_loser_against_other_losers():
+    """Regression: with an unidentified keeper, each loser passed against the keeper
+    alone, so two losers linked to different entries were both merged into it."""
+    keeper = make_scene("10")
+    loser_a = make_scene("20", stash_ids=[(STASHDB, "aaa")])
+    loser_b = make_scene("30", stash_ids=[(STASHDB, "bbb")])
+    group = [keeper, loser_a, loser_b]
+
+    verdict = stash_id_conflict(keeper, loser_a, group)
+
+    assert not verdict.allowed
+    assert "scene 30" in verdict.reason
+    assert not stash_id_conflict(keeper, loser_b, group).allowed
+
+
+def test_evaluate_pair_passes_the_group_to_the_stash_id_rail(config):
+    keeper = make_candidate("1", "10", path="/media/library/a.mkv", size=100)
+    loser = make_candidate("2", "20", path="/media/library/b.mkv")
+    loser = replace(loser, scene=replace(loser.scene, stash_ids=frozenset({(STASHDB, "aaa")})))
+    peer = make_scene("30", stash_ids=[(STASHDB, "bbb")])
+    fs = FakeFileSystem({keeper.file.path: 100, loser.file.path: 200})
+
+    verdicts = evaluate_pair(keeper, loser, config, LIBRARY, fs, [keeper.scene, peer])
+
+    assert first_block(verdicts).rail == "G_STASH_ID_CONFLICT"
+
+
 # G_RUN_CAP
 
 def test_run_cap_permits_within_limits(config):
@@ -454,7 +577,8 @@ def test_evaluate_pair_returns_a_verdict_per_rail(config):
 
     assert {v.rail for v in verdicts} == {
         "G_KEEPER_INTACT", "G_LIBRARY_SCOPE", "G_PROTECTED_PATHS",
-        "G_DURATION", "G_QUALITY_FLOOR", "G_METADATA",
+        "G_DURATION", "G_MIN_DURATION", "G_STASH_ID_CONFLICT",
+        "G_QUALITY_FLOOR", "G_METADATA",
     }
     assert first_block(verdicts) is None
 

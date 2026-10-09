@@ -62,6 +62,12 @@ def _scene_to_dict(scene: SceneInfo) -> dict:
         "playCount": scene.play_count,
         "fileIds": list(scene.file_ids),
         "primaryFileId": scene.primary_file_id,
+        "studioId": scene.studio_id,
+        "code": scene.code,
+        "date": scene.date,
+        "details": scene.details,
+        "director": scene.director,
+        "stashIds": sorted(f"{e}#{s}" for e, s in scene.stash_ids),
     }
 
 
@@ -165,6 +171,12 @@ def _scene_from_dict(raw: dict) -> SceneInfo:
         play_count=int(raw.get("playCount") or 0),
         file_ids=tuple(str(f) for f in raw.get("fileIds") or []),
         primary_file_id=raw.get("primaryFileId"),
+        studio_id=raw.get("studioId"),
+        code=raw.get("code") or "",
+        date=raw.get("date"),
+        details=raw.get("details") or "",
+        director=raw.get("director") or "",
+        stash_ids=frozenset(tuple(x.rsplit("#", 1)) for x in raw.get("stashIds") or []),
     )
 
 

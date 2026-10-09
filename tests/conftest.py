@@ -54,11 +54,18 @@ def make_scene(
     marker_count=0,
     play_count=0,
     primary_file_id=None,
+    title=None,
+    studio_id=None,
+    code="",
+    date=None,
+    details="",
+    director="",
+    stash_ids=(),
 ) -> SceneInfo:
     ids = tuple(str(f) for f in (file_ids or ["1"]))
     return SceneInfo(
         id=str(scene_id),
-        title=f"scene {scene_id}",
+        title=f"scene {scene_id}" if title is None else title,
         organized=organized,
         o_counter=o_counter,
         rating100=rating100,
@@ -69,6 +76,12 @@ def make_scene(
         play_count=play_count,
         file_ids=ids,
         primary_file_id=primary_file_id or ids[0],
+        studio_id=studio_id,
+        code=code,
+        date=date,
+        details=details,
+        director=director,
+        stash_ids=frozenset(stash_ids),
     )
 
 

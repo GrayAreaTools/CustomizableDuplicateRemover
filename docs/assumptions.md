@@ -181,3 +181,37 @@ Non-obvious decisions and the reasoning behind them.
   why instead.
 - **Recorded by:** Claude
 - **Date:** 2026-07-31
+
+- **Assumption:** When a stash-box identified scene is merged into an unidentified
+  keeper, the identified scene's title, studio, code, date, details and director replace
+  the keeper's.
+- **Why:** The codec-first ranking usually keeps an unidentified re-encode whose title
+  is a filename. Gap-filling alone would keep that filename and discard the curated
+  title. With no identification on either side, or on both, the keeper's values are
+  kept and only gaps are filled, as before.
+- **Recorded by:** Claude
+- **Date:** 2026-10-09
+
+- **Assumption:** `G_STASH_ID_CONFLICT` checks each loser against every scene in the
+  group, not only the keeper.
+- **Why:** An unidentified keeper conflicts with nothing. Two losers linked to
+  different entries on the same endpoint would each pass the pairwise check and then be
+  merged into one scene carrying both links, with identity taken from whichever sorted
+  first. Blocking both leaves the group for manual review.
+- **Recorded by:** Claude
+- **Date:** 2026-10-09
+
+- **Assumption:** `minDuration` is a safety control and is not in
+  `OVERRIDABLE_SETTINGS`.
+- **Why:** Lowering it is what lets short clips be deleted against unrelated scenes, so
+  it belongs with the other rail thresholds that only the saved settings can change.
+- **Recorded by:** Claude
+- **Date:** 2026-10-09
+
+- **Assumption:** A merge sets the keeper `organized` whenever any merged source was
+  organized, whether or not either scene is identified. It never clears the flag.
+- **Why:** Organized marks review the operator did by hand. Before this, a loser whose
+  only difference was the flag reported nothing to merge, was destroyed outright, and
+  the flag was lost with it.
+- **Recorded by:** Claude
+- **Date:** 2026-10-09

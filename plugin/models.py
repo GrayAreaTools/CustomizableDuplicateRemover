@@ -80,6 +80,18 @@ class SceneInfo:
     play_count: int
     file_ids: tuple[str, ...]
     primary_file_id: Optional[str]
+    # Identification metadata. sceneMerge copies none of it, so a merge that leaves it
+    # out silently strips a scene of its studio and stash-box links.
+    studio_id: Optional[str] = None
+    code: str = ""
+    date: Optional[str] = None
+    details: str = ""
+    director: str = ""
+    stash_ids: frozenset[tuple[str, str]] = frozenset()
+
+    @property
+    def is_identified(self) -> bool:
+        return bool(self.stash_ids)
 
     @property
     def is_multi_file(self) -> bool:
@@ -106,7 +118,21 @@ class SceneInfo:
             lost["play_count"] = self.play_count
         if self.marker_count > 0:
             lost["marker_count"] = self.marker_count
+        if self.organized and not other.organized:
+            lost["organized"] = True
+        if self.stash_ids - other.stash_ids:
+            lost["stash_ids"] = sorted(f"{e}#{s}" for e, s in self.stash_ids - other.stash_ids)
+        for attr in IDENTITY_SCALARS:
+            mine, theirs = getattr(self, attr), getattr(other, attr)
+            if mine and (not theirs or (self.is_identified and not other.is_identified and mine != theirs)):
+                lost[attr] = mine
         return lost
+
+
+# Scalars that describe what a scene *is*. When the loser is stash-box identified and the
+# keeper is not, the loser's values are authoritative (the keeper's title is usually just
+# a filename), so they replace the keeper's; otherwise they only fill gaps.
+IDENTITY_SCALARS = ("title", "studio_id", "code", "date", "details", "director")
 
 
 def merge_values(keeper: "SceneInfo", sources: "list[SceneInfo]") -> dict:
@@ -114,8 +140,12 @@ def merge_values(keeper: "SceneInfo", sources: "list[SceneInfo]") -> dict:
 
     `sceneMerge` applies `values` verbatim over the destination and copies nothing
     itself, so the union has to be computed here or the sources' curation is lost.
-    Scalars are only supplied when the keeper has none — a merge must never overwrite
-    something the operator set on the file they chose to keep.
+
+    Identity scalars (`IDENTITY_SCALARS`) normally only fill gaps in the keeper. The
+    exception is a stash-box identified source merging into an unidentified keeper: the
+    source's values then replace the keeper's, because the keeper's are usually just
+    derived from a filename. `G_STASH_ID_CONFLICT` guarantees the sources agree, so
+    which identified source is used does not matter.
     """
     values: dict = {"id": keeper.id}
 
@@ -138,6 +168,27 @@ def merge_values(keeper: "SceneInfo", sources: "list[SceneInfo]") -> dict:
         ratings = [s.rating100 for s in sources if s.rating100 is not None]
         if ratings:
             values["rating100"] = max(ratings)
+
+    stash_ids = set(keeper.stash_ids)
+    for source in sources:
+        stash_ids |= source.stash_ids
+    if stash_ids != keeper.stash_ids:
+        values["stash_ids"] = [{"endpoint": e, "stash_id": s} for e, s in sorted(stash_ids)]
+
+    identified = next((s for s in sources if s.is_identified), None)
+    authority = identified if identified and not keeper.is_identified else None
+    for attr in IDENTITY_SCALARS:
+        field_name = attr  # SceneUpdateInput uses the same snake_case names
+        if authority is not None and getattr(authority, attr):
+            if getattr(authority, attr) != getattr(keeper, attr):
+                values[field_name] = getattr(authority, attr)
+        elif not getattr(keeper, attr):
+            value = next((getattr(s, attr) for s in sources if getattr(s, attr)), None)
+            if value:
+                values[field_name] = value
+    # Organized is curation the operator did by hand; deleting a copy must not undo it.
+    if not keeper.organized and any(s.organized for s in sources):
+        values["organized"] = True
 
     return values
 

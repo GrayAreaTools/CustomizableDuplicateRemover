@@ -45,7 +45,13 @@ def raw_file(file_id, *, codec="h264", width=1920, height=1080, size=1_000_000_0
 def raw_scene(scene_id, files, **kwargs):
     return {
         "id": str(scene_id),
-        "title": f"scene {scene_id}",
+        "title": kwargs.get("title", f"scene {scene_id}"),
+        "code": kwargs.get("code"),
+        "date": kwargs.get("date"),
+        "details": kwargs.get("details"),
+        "director": kwargs.get("director"),
+        "studio": {"id": kwargs["studio"]} if kwargs.get("studio") else None,
+        "stash_ids": [{"endpoint": e, "stash_id": s} for e, s in kwargs.get("stash_ids", [])],
         "organized": kwargs.get("organized", False),
         "o_counter": kwargs.get("o_counter", 0),
         "rating100": kwargs.get("rating100"),
@@ -331,6 +337,89 @@ def test_merged_scene_file_is_reported_deleted_only_because_it_really_was(audit,
     assert record["deleted"]["fileId"] == "2"
     # The file id claimed deleted is the one actually passed to deleteFiles.
     assert client.deleted_files == [record["deleted"]["fileId"]]
+
+
+def test_merge_carries_identity_from_an_identified_loser(audit, confirmed):
+    """The codec-first ranking often keeps the unidentified HEVC re-encode. Before this,
+    the identified copy's studio, title and stash-box link were destroyed with it."""
+    stashdb = "https://stashdb.org/graphql"
+    scenes = [
+        raw_scene("10", [raw_file("1", codec="hevc", bit_rate=4_000_000)],
+                  title="movie.hevc.1080p"),
+        raw_scene("20", [raw_file("2", codec="h264", bit_rate=8_000_000)],
+                  title="Real Title", studio="s1", code="ABC-123", date="2024-05-01",
+                  details="Synopsis.", director="Someone", organized=True,
+                  stash_ids=[(stashdb, "aaa")]),
+    ]
+    plan, fs = plan_for(scenes, confirmed)
+    client = FakeClient(scenes)
+
+    Executor(client, confirmed, audit, fs, LIBRARY).execute(plan)
+
+    assert len(client.merges) == 1
+    values = client.merges[0]["values"]
+    assert values["title"] == "Real Title"
+    assert values["studio_id"] == "s1"
+    assert values["code"] == "ABC-123"
+    assert values["date"] == "2024-05-01"
+    assert values["details"] == "Synopsis."
+    assert values["director"] == "Someone"
+    assert values["organized"] is True
+    assert values["stash_ids"] == [{"endpoint": stashdb, "stash_id": "aaa"}]
+
+
+def test_execution_blocks_a_stash_id_conflict_that_appeared_after_planning(audit, confirmed):
+    """G_STASH_ID_CONFLICT is re-checked against live state, with the whole group."""
+    stashdb = "https://stashdb.org/graphql"
+    scenes = [
+        raw_scene("10", [raw_file("1", codec="hevc", bit_rate=4_000_000)]),
+        raw_scene("20", [raw_file("2", codec="h264", bit_rate=8_000_000)]),
+        raw_scene("30", [raw_file("3", codec="h264", bit_rate=8_000_000, size=999)]),
+    ]
+    plan, fs = plan_for(scenes, confirmed)
+    scenes[1]["stash_ids"] = [{"endpoint": stashdb, "stash_id": "aaa"}]
+    scenes[2]["stash_ids"] = [{"endpoint": stashdb, "stash_id": "bbb"}]
+    client = FakeClient(scenes)
+
+    Executor(client, confirmed, audit, fs, LIBRARY).execute(plan)
+
+    assert client.merges == []
+    assert client.destroyed == []
+    assert client.deleted_files == []
+
+
+def test_organized_only_loser_is_merged_not_just_destroyed(audit, confirmed):
+    """Regression: with organized as the only difference the plugin saw nothing to merge,
+    destroyed the loser with scenesDestroy, and the flag was lost."""
+    scenes = [
+        raw_scene("10", [raw_file("1", codec="hevc", bit_rate=4_000_000)]),
+        raw_scene("20", [raw_file("2", codec="h264", bit_rate=8_000_000)], organized=True),
+    ]
+    plan, fs = plan_for(scenes, confirmed)
+    client = FakeClient(scenes)
+
+    Executor(client, confirmed, audit, fs, LIBRARY).execute(plan)
+
+    assert len(client.merges) == 1
+    assert client.merges[0]["values"] == {"id": "10", "organized": True}
+    assert client.destroyed == []
+    assert client.deleted_files == ["2"]
+
+
+def test_organized_keeper_needs_no_merge(audit, confirmed):
+    scenes = [
+        raw_scene("10", [raw_file("1", codec="hevc", bit_rate=4_000_000)], organized=True),
+        raw_scene("20", [raw_file("2", codec="h264", bit_rate=8_000_000)], organized=True),
+    ]
+    plan, fs = plan_for(scenes, confirmed)
+    client = FakeClient(scenes)
+
+    Executor(client, confirmed, audit, fs, LIBRARY).execute(plan)
+
+    assert client.merges == []
+    assert client.destroyed == [
+        {"ids": ["20"], "delete_file": True, "delete_generated": True}
+    ]
 
 
 def test_merge_values_union_preserves_the_keepers_own_metadata(audit, confirmed):

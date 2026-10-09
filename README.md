@@ -127,8 +127,10 @@ manual review rather than guessed at), `smallest_of_highest_resolution`,
 | `G_LIBRARY_SCOPE` | Deleting outside Stash's configured library paths. Paths are resolved through symlinks first. |
 | `G_PROTECTED_PATHS` | Deleting under a path prefix you have declared off-limits. |
 | `G_DURATION` | A truncated encode replacing a complete file. Phashes are computed from a sample, so a partial file can match. |
+| `G_MIN_DURATION` | Acting on a match involving a very short clip. A few seconds of video hashes to almost nothing, so short clips match unrelated full-length scenes. |
+| `G_STASH_ID_CONFLICT` | Merging scenes that a stash-box identifies as different. Any two scenes in the group linked to different IDs on the same endpoint block the group for manual review. |
 | `G_QUALITY_FLOOR` | A botched, over-compressed transcode winning on codec alone. Compares bits per pixel per frame, with a looser allowance across codecs since HEVC legitimately needs about half H.264's bitrate. |
-| `G_METADATA` | Silently losing tags, performers, ratings, play counts, or markers. Merges them into the keeper first, or skips the group. |
+| `G_METADATA` | Silently losing tags, performers, ratings, play counts, markers, the organized flag, studio, title, code, date, details, director, or stash-box links. Merges them into the keeper first, or skips the group. When the loser is stash-box identified and the keeper is not, the loser's identity replaces the keeper's; otherwise it only fills gaps. |
 | `G_RUN_CAP` | A misconfigured policy deleting a large share of the library in one pass. Two caps: absolute count and fraction of library. A breach aborts before anything is deleted. |
 | `G_PLAN_FRESH` | Executing a reviewed plan against a library that has since changed. A fingerprint over every candidate's id, size, mod time, and path must still match. |
 | `G_CONFIRM` | An accidental click deleting files. Needs the explicit task *and* the setting. |
@@ -179,6 +181,7 @@ default, because a typo in `rankOrder` must not quietly delete the wrong files.
 | `phashDistance` | NUMBER | `0` | 0 exact, 4 high, 8 medium, 10 low |
 | `durationDiff` | NUMBER | `1.0` | Passed to `findDuplicateScenes` |
 | `durationTolerance` | NUMBER | `1.0` | `G_DURATION` tolerance in seconds |
+| `minDuration` | NUMBER | `60` | `G_MIN_DURATION`: shortest clip, in seconds, the plugin will act on. Settings only; the page cannot override it |
 | `qualityFloorRatio` | NUMBER | `0.35` | `G_QUALITY_FLOOR` same-codec threshold |
 | `qualityFloorRatioCrossCodec` | NUMBER | `0.15` | `G_QUALITY_FLOOR` cross-codec threshold |
 | `protectedPaths` | STRING | *(empty)* | Comma-separated prefixes never deleted |

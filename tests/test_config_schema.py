@@ -155,6 +155,19 @@ def test_boolean_settings_accept_documented_forms(raw, expected):
     assert parse_config({"confirmDestructive": raw}).confirm_destructive is expected
 
 
+@pytest.mark.parametrize("raw,expected", [(None, False), ("", False), ("true", True), (False, False)])
+def test_allow_resolution_downgrade_parses_and_defaults_off(raw, expected):
+    assert parse_config({"allowResolutionDowngrade": raw}).allow_resolution_downgrade is expected
+
+
+def test_allow_resolution_downgrade_rejects_nonsense():
+    with pytest.raises(ParseError) as excinfo:
+        parse_config({"allowResolutionDowngrade": "sometimes"})
+
+    assert excinfo.value.code == "SETTING_NOT_A_BOOLEAN"
+    assert excinfo.value.context["setting"] == "allowResolutionDowngrade"
+
+
 def test_boolean_setting_rejects_nonsense():
     with pytest.raises(ParseError) as excinfo:
         parse_config({"confirmDestructive": "maybe"})

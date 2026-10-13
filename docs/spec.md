@@ -118,7 +118,9 @@ codec,resolution,bitrate,size,age
 ```
 
 Chosen for the Unmanic pipeline: an HEVC 1080p file outranks an H.264 4K file, because
-the 4K original is what the pipeline is deliberately retiring.
+the 4K original is what the pipeline is deliberately retiring. That outcome needs
+`allowResolutionDowngrade`; by default `G_RESOLUTION` blocks deleting the 4K file, so
+codec-first only decides between copies at the same resolution or lower.
 
 ### 5.3 Codec preference
 
@@ -162,6 +164,7 @@ and continues to the next; it never aborts mid-group leaving a half-applied chan
 | `G_LIBRARY_SCOPE` | Every path targeted for deletion must lie beneath one of Stash's configured library paths, resolved through symlinks. | A malformed path, path traversal, or bad DB row causing deletion outside the library. |
 | `G_PROTECTED_PATHS` | Paths matching `protectedPaths` are never deleted; if a group's only viable keeper is protected, the group still resolves normally, but a protected loser downgrades the group to `SKIPPED`. | Losing irreplaceable originals kept in a specific folder. |
 | `G_DURATION` | Keeper and loser durations must agree within `durationTolerance` seconds (default 1.0). | Deleting a full-length file in favour of a truncated or partial encode that happens to share a phash. |
+| `G_RESOLUTION` | The loser must not have more pixels than the keeper, unless `allowResolutionDowngrade` is on. Independent of `rankOrder`. | A rank order or page preset replacing 1080p/4K originals with lower-resolution re-encodes. |
 | `G_MIN_DURATION` | The shorter of keeper and loser must be at least `minDuration` seconds (default 60). | Acting on a phash match between a clip of a few seconds and an unrelated full scene. |
 | `G_STASH_ID_CONFLICT` | The loser must not be linked to a different stash ID than any other scene in the group on the same endpoint. Checked against the whole group, because an unidentified keeper conflicts with nothing. | Merging two scenes a stash-box says are different, or merging two conflicting identifications into one scene. |
 | `G_QUALITY_FLOOR` | Keeper's bits-per-pixel-per-frame must be at least `qualityFloorRatio` (default 0.35) of the loser's, unless the keeper's codec ranks strictly better, in which case the allowance is `qualityFloorRatioCrossCodec` (default 0.15) to account for HEVC's efficiency. | Deleting a good file in favour of a botched, over-compressed transcode. |
@@ -240,6 +243,7 @@ accepted values — it never falls back to a default silently.
 | `phashDistance` | NUMBER | `0` | 0 exact, 4 high, 8 medium, 10 low |
 | `durationDiff` | NUMBER | `1.0` | Passed to `findDuplicateScenes` |
 | `durationTolerance` | NUMBER | `1.0` | `G_DURATION` |
+| `allowResolutionDowngrade` | BOOLEAN | `false` | Disables `G_RESOLUTION`; not overridable from the page |
 | `minDuration` | NUMBER | `60` | `G_MIN_DURATION`; not overridable from the page |
 | `qualityFloorRatio` | NUMBER | `0.35` | `G_QUALITY_FLOOR` |
 | `qualityFloorRatioCrossCodec` | NUMBER | `0.15` | `G_QUALITY_FLOOR` |
@@ -298,7 +302,8 @@ Ranking, guard rails, and plan generation are pure functions over candidate data
 the bulk of the suite runs against fixtures with no Stash instance.
 
 **Unit — ranking**
-- codec-first order keeps 1080p HEVC over 4K H.264
+- codec-first order keeps 1080p HEVC over 4K H.264 when `allowResolutionDowngrade` is on,
+  and `G_RESOLUTION` blocks it when off
 - resolution-first order keeps 4K H.264 over 1080p HEVC
 - unknown codec sorts last and flags the group
 - codec aliases normalise (`h265`, `x265`, `HEVC` → `hevc`)

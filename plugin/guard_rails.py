@@ -207,6 +207,30 @@ def duration_match(keeper: Candidate, loser: Candidate, config: Config) -> Verdi
     return _ok(rail, delta=delta)
 
 
+def resolution_floor(keeper: Candidate, loser: Candidate, config: Config) -> Verdict:
+    """`G_RESOLUTION` — never delete a higher-resolution file to keep a lower one.
+
+    Independent of rankOrder on purpose: the plan page sends its selected preset with
+    every run, and a codec-first preset silently replaced 1080p/4K originals with
+    720p/360p re-encodes. Compares pixel count so portrait and landscape copies of the
+    same video are treated as equal.
+
+    `allowResolutionDowngrade` turns it off for a deliberate downscaling pipeline. It is
+    a saved setting only, so a page preset can never switch it off for a run.
+    """
+    rail = "G_RESOLUTION"
+    if config.allow_resolution_downgrade:
+        return _ok(rail, downgrade_allowed=True)
+    if loser.file.pixels > keeper.file.pixels:
+        return _block(
+            rail,
+            f"Loser is higher resolution ({loser.file.width}x{loser.file.height}) than the "
+            f"keeper ({keeper.file.width}x{keeper.file.height}); refusing to downgrade.",
+            keeper_pixels=keeper.file.pixels, loser_pixels=loser.file.pixels,
+        )
+    return _ok(rail)
+
+
 def min_duration(keeper: Candidate, loser: Candidate, config: Config) -> Verdict:
     """`G_MIN_DURATION` — phash is meaningless on very short clips.
 
@@ -449,6 +473,7 @@ def evaluate_pair(
         library_scope(loser, library_paths, fs),
         protected_path(loser, config, fs),
         duration_match(keeper, loser, config),
+        resolution_floor(keeper, loser, config),
         min_duration(keeper, loser, config),
         stash_id_conflict(keeper.scene, loser.scene, group_scenes),
         quality_floor(keeper, loser, config),

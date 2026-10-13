@@ -168,6 +168,7 @@ def test_overrides_cannot_enable_destruction(monkeypatch, stub, tmp_path):
         ("qualityFloorRatioCrossCodec", 0),
         ("durationTolerance", 3600),
         ("minDuration", 0),
+        ("allowResolutionDowngrade", True),
         ("metadataPolicy", "ignore"),
         ("maxDeletionsPerRun", 100000),
         ("maxFractionOfLibrary", 1.0),
@@ -207,6 +208,7 @@ def test_overrides_the_page_actually_sends_are_permitted(monkeypatch, stub, tmp_
 def test_overridable_settings_excludes_every_safety_control():
     forbidden = {"confirmDestructive", "maxDeletionsPerRun", "maxFractionOfLibrary",
                  "protectedPaths", "reportDir", "durationTolerance", "minDuration",
+                 "allowResolutionDowngrade",
                  "metadataPolicy",
                  "qualityFloorRatio", "qualityFloorRatioCrossCodec"}
 

@@ -26,6 +26,7 @@ from guard_rails import (
     plan_fresh,
     protected_path,
     quality_floor,
+    resolution_floor,
     run_cap,
     stash_id_conflict,
 )
@@ -364,6 +365,49 @@ def test_metadata_counts_markers_as_loss(config):
     assert metadata_preserved(keeper, loser, config).context["lost"]["marker_count"] == 4
 
 
+# G_RESOLUTION
+
+def test_resolution_floor_blocks_deleting_a_higher_resolution_loser(config):
+    keeper = make_candidate("1", "10", width=1280, height=720)
+    loser = make_candidate("2", "20", width=1920, height=1080)
+
+    verdict = resolution_floor(keeper, loser, config)
+
+    assert not verdict.allowed
+    assert verdict.rail == "G_RESOLUTION"
+    assert "1920x1080" in verdict.reason and "1280x720" in verdict.reason
+    assert verdict.context == {"keeper_pixels": 1280 * 720, "loser_pixels": 1920 * 1080}
+
+
+def test_resolution_floor_permits_a_lower_resolution_loser(config):
+    keeper = make_candidate("1", "10", width=3840, height=2160)
+    loser = make_candidate("2", "20", width=1920, height=1080)
+
+    assert resolution_floor(keeper, loser, config).allowed
+
+
+def test_resolution_floor_treats_portrait_and_landscape_as_equal(config):
+    keeper = make_candidate("1", "10", width=1080, height=1920)
+    loser = make_candidate("2", "20", width=1920, height=1080)
+
+    assert resolution_floor(keeper, loser, config).allowed
+
+
+def test_resolution_floor_is_on_by_default(config):
+    assert config.allow_resolution_downgrade is False
+
+
+def test_resolution_floor_opt_out_permits_a_deliberate_downscale():
+    cfg = parse_config({"allowResolutionDowngrade": True})
+    keeper = make_candidate("1", "10", codec="hevc", width=1920, height=1080)
+    loser = make_candidate("2", "20", codec="h264", width=3840, height=2160)
+
+    verdict = resolution_floor(keeper, loser, cfg)
+
+    assert verdict.allowed
+    assert verdict.context["downgrade_allowed"] is True
+
+
 # G_MIN_DURATION
 
 def test_min_duration_permits_full_length_files(config):
@@ -577,7 +621,7 @@ def test_evaluate_pair_returns_a_verdict_per_rail(config):
 
     assert {v.rail for v in verdicts} == {
         "G_KEEPER_INTACT", "G_LIBRARY_SCOPE", "G_PROTECTED_PATHS",
-        "G_DURATION", "G_MIN_DURATION", "G_STASH_ID_CONFLICT",
+        "G_DURATION", "G_RESOLUTION", "G_MIN_DURATION", "G_STASH_ID_CONFLICT",
         "G_QUALITY_FLOOR", "G_METADATA",
     }
     assert first_block(verdicts) is None

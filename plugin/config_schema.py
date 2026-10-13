@@ -55,6 +55,7 @@ DEFAULTS: dict[str, Any] = {
     "durationDiff": 1.0,
     "durationTolerance": 1.0,
     "minDuration": 60.0,
+    "allowResolutionDowngrade": False,
     "qualityFloorRatio": 0.35,
     "qualityFloorRatioCrossCodec": 0.15,
     "protectedPaths": "",
@@ -238,6 +239,7 @@ class Config:
     duration_diff: float
     duration_tolerance: float
     min_duration: float
+    allow_resolution_downgrade: bool
     quality_floor_ratio: float
     quality_floor_ratio_cross_codec: float
     protected_paths: tuple[str, ...]
@@ -261,6 +263,7 @@ class Config:
             "durationDiff": self.duration_diff,
             "durationTolerance": self.duration_tolerance,
             "minDuration": self.min_duration,
+            "allowResolutionDowngrade": self.allow_resolution_downgrade,
             "qualityFloorRatio": self.quality_floor_ratio,
             "qualityFloorRatioCrossCodec": self.quality_floor_ratio_cross_codec,
             "protectedPaths": list(self.protected_paths),
@@ -362,6 +365,10 @@ def parse_config(raw: Optional[dict], *, default_report_dir: str = "") -> Config
         min_duration=_parse_number(
             "minDuration", settings.get("minDuration"),
             DEFAULTS["minDuration"], minimum=0.0, maximum=3600.0,
+        ),
+        allow_resolution_downgrade=_parse_bool(
+            "allowResolutionDowngrade", settings.get("allowResolutionDowngrade"),
+            DEFAULTS["allowResolutionDowngrade"],
         ),
         quality_floor_ratio=_parse_number(
             "qualityFloorRatio", settings.get("qualityFloorRatio"),

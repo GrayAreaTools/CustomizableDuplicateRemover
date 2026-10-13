@@ -215,3 +215,14 @@ Non-obvious decisions and the reasoning behind them.
   the flag was lost with it.
 - **Recorded by:** Claude
 - **Date:** 2026-10-09
+
+- **Assumption:** `G_RESOLUTION` is on by default, with a settings-only opt-out
+  (`allowResolutionDowngrade`) rather than no opt-out at all.
+- **Why:** The page re-sends its selected preset each run, and the codec-first preset
+  replaced 1080p/4K originals with 720p/360p re-encodes. A rail independent of
+  `rankOrder` stops that. Making it unconditional would also remove the deliberate
+  4K-to-1080p downscale case the plugin was first built for, so the opt-out stays, but
+  only the saved settings can enable it: it is not in `OVERRIDABLE_SETTINGS`, so no
+  preset can.
+- **Recorded by:** Claude
+- **Date:** 2026-10-13

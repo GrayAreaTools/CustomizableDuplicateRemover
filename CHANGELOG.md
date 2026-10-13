@@ -5,6 +5,23 @@ Notable changes to this plugin. The format follows
 [Semantic Versioning](https://semver.org/). The published index appends the short
 commit hash to each version, e.g. `0.2.0-3da02d5`.
 
+## [0.3.0] - 2026-10-13
+
+### Added
+
+- `G_RESOLUTION` never deletes a higher-resolution file to keep a lower one,
+  independent of `rankOrder`. The plan page re-sends its selected preset each run, and a
+  codec-first preset replaced 1080p/4K originals with 720p/360p re-encodes.
+- `allowResolutionDowngrade` (default off) turns `G_RESOLUTION` off for a deliberate
+  downscaling pipeline, such as 4K re-encoded to 1080p HEVC. It is settings-only; the
+  page cannot override it.
+
+### Changed
+
+- With default settings, codec-first ranking no longer keeps a lower-resolution file
+  over a higher-resolution one. Such groups are reported as skipped. To restore 0.2.x
+  behaviour, turn on `allowResolutionDowngrade`.
+
 ## [0.2.1] - 2026-10-09
 
 ### Fixed

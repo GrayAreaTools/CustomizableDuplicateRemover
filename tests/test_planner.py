@@ -21,7 +21,9 @@ def fs_for(*candidates):
     return FakeFileSystem({c.file.path: c.file.size for c in candidates})
 
 
-def test_resolves_hevc_over_h264_and_marks_scene_destroy(config):
+def test_resolves_hevc_over_h264_and_marks_scene_destroy():
+    """The downscaling pipeline case, which G_RESOLUTION blocks unless opted out."""
+    config = parse_config({"allowResolutionDowngrade": True})
     keeper = candidate("1", "10", codec="hevc", width=1920, height=1080,
                        bit_rate=4_000_000, size=2_000_000_000)
     loser = candidate("2", "20", codec="h264", width=3840, height=2160,
@@ -141,7 +143,7 @@ def test_plan_group_records_a_verdict_for_every_loser(config):
     plan = plan_group(0, [keeper, loser], config, LIBRARY, fs_for(keeper, loser))
 
     assert plan.candidates[0].verdicts == []  # keeper is not evaluated against itself
-    assert len(plan.candidates[1].verdicts) == 8
+    assert len(plan.candidates[1].verdicts) == 9
 
 
 def test_build_plan_aggregates_and_evaluates_the_cap(config):
@@ -337,3 +339,28 @@ def test_group_with_a_short_clip_is_skipped():
     assert plan.candidates[1].verdicts and any(
         v.rail == "G_MIN_DURATION" and not v.allowed for v in plan.candidates[1].verdicts
     )
+
+
+def test_codec_first_does_not_delete_a_higher_resolution_original_by_default(config):
+    """Regression: the page's codec preset replaced 1080p/4K originals with 720p/360p
+    re-encodes. G_RESOLUTION keeps the original whatever rankOrder says."""
+    keeper = candidate("1", "10", codec="hevc", width=1280, height=720)
+    loser = candidate("2", "20", codec="h264", width=1920, height=1080)
+
+    plan = plan_group(0, [keeper, loser], config, LIBRARY, fs_for(keeper, loser))
+
+    assert plan.status is GroupStatus.SKIPPED
+    assert all(entry.action is None for entry in plan.candidates)
+    blocked = [v for v in plan.candidates[1].verdicts if not v.allowed]
+    assert [v.rail for v in blocked] == ["G_RESOLUTION"]
+
+
+def test_resolution_first_policy_is_unaffected_by_the_rail(config):
+    cfg = parse_config({"rankOrder": "resolution,codec,bitrate,size"})
+    hevc_720 = candidate("1", "10", codec="hevc", width=1280, height=720)
+    h264_1080 = candidate("2", "20", codec="h264", width=1920, height=1080)
+
+    plan = plan_group(0, [hevc_720, h264_1080], cfg, LIBRARY, fs_for(hevc_720, h264_1080))
+
+    assert plan.status is GroupStatus.RESOLVED
+    assert plan.keeper.candidate is h264_1080

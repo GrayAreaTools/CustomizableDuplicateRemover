@@ -422,6 +422,25 @@ def test_organized_keeper_needs_no_merge(audit, confirmed):
     ]
 
 
+def test_execution_refuses_a_downgrade_once_the_opt_out_is_turned_off(audit, confirmed):
+    """G_RESOLUTION is re-checked with the live settings, not the plan's."""
+    planned_with = parse_config({"confirmDestructive": True, "allowResolutionDowngrade": True})
+    scenes = [
+        raw_scene("10", [raw_file("1", codec="hevc", bit_rate=4_000_000)]),
+        raw_scene("20", [raw_file("2", codec="h264", bit_rate=20_000_000,
+                                  width=3840, height=2160)]),
+    ]
+    plan, fs = plan_for(scenes, planned_with)
+    assert plan.groups[0].losers, "the opt-out should have let the plan approve the 4K loser"
+    client = FakeClient(scenes)
+
+    Executor(client, confirmed, audit, fs, LIBRARY).execute(plan)
+
+    assert client.destroyed == []
+    assert client.deleted_files == []
+    assert client.merges == []
+
+
 def test_merge_values_union_preserves_the_keepers_own_metadata(audit, confirmed):
     """A merge must never overwrite something set on the file being kept."""
     scenes = [

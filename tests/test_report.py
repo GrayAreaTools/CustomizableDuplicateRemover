@@ -23,7 +23,7 @@ def plan_with(config, *, keeper_path="/media/library/a.mkv", loser_path="/media/
     loser = Candidate(
         scene=make_scene("20", file_ids=["2"]),
         file=make_file("2", path=loser_path, codec="h264", bit_rate=8_000_000,
-                       width=3840, height=2160, size=8_000_000_000),
+                       size=8_000_000_000),
     )
     fs = FakeFileSystem({keeper.file.path: keeper.file.size, loser.file.path: loser.file.size})
     return build_plan("run1", [[keeper, loser]], config, LIBRARY, fs,

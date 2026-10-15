@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
 import time
 import traceback
@@ -44,6 +45,7 @@ from plan_io import (
 from planner import build_plan
 from report import write_reports
 from stash_client import StashClient, StashError
+from visual import FfmpegProbe
 
 PLUGIN_ID = "CustomizableDuplicateRemover"
 KEEP_TAG = "CDR: Keep"
@@ -132,7 +134,30 @@ def _apply_overrides(settings: dict, overrides: Optional[dict]) -> dict:
     return merged
 
 
-def _gather_plan(client: StashClient, config, run_id: str, logger, fs):
+def make_probe(client: StashClient, config, logger) -> Optional[FfmpegProbe]:
+    """The visual probe for `G_VISUAL_MATCH`, or None when `visualCheck` is off.
+
+    Fails the run when the check is on but ffmpeg cannot be found: silently skipping a
+    check the operator turned on would delete on weaker evidence than they asked for.
+    """
+    if not config.visual_check:
+        return None
+    configured = client.ffmpeg_path()
+    resolved = shutil.which(configured or "ffmpeg")
+    if not resolved:
+        raise StashError(
+            "VISUAL_CHECK_UNAVAILABLE",
+            "visualCheck is on, but ffmpeg was not found "
+            f"(Stash's ffmpegPath is {configured or 'unset'}). Turn visualCheck off "
+            "or fix the ffmpeg path in Stash.",
+            {"ffmpegPath": configured},
+        )
+    logger.info(f"visual check on: ffmpeg={resolved}, "
+                f"minVisualSimilarity={config.min_visual_similarity}")
+    return FfmpegProbe(resolved)
+
+
+def _gather_plan(client: StashClient, config, run_id: str, logger, fs, probe=None):
     """Fetch duplicate groups and plan them. Read-only."""
     version = client.version()
     library_paths = client.library_paths()
@@ -155,6 +180,7 @@ def _gather_plan(client: StashClient, config, run_id: str, logger, fs):
         library_file_count=scene_count,
         stash_version=version,
         on_progress=logger.progress,
+        probe=probe,
     )
     return plan
 
@@ -191,9 +217,9 @@ def _tag_plan(client: StashClient, plan, logger) -> dict:
 # -- modes -----------------------------------------------------------------
 
 def mode_plan(
-    client, config, run_id, logger, fs, *, write_files: bool = True
+    client, config, run_id, logger, fs, *, write_files: bool = True, probe=None
 ) -> tuple[dict, Any]:
-    plan = _gather_plan(client, config, run_id, logger, fs)
+    plan = _gather_plan(client, config, run_id, logger, fs, probe)
 
     missing_phash = 0
     try:
@@ -260,7 +286,7 @@ def _resolve_plan_path(config, requested: Optional[str]) -> str:
     return resolved
 
 
-def mode_execute(client, config, run_id, logger, fs, args) -> dict:
+def mode_execute(client, config, run_id, logger, fs, args, probe=None) -> dict:
     plan_path = _resolve_plan_path(config, args.get("planFile"))
     plan = read_plan(plan_path)
 
@@ -304,7 +330,7 @@ def mode_execute(client, config, run_id, logger, fs, args) -> dict:
     audit.run_started("execute", config.as_dict(), plan.stash_version)
 
     executor = Executor(
-        client, config, audit, fs, client.library_paths(), logger=logger
+        client, config, audit, fs, client.library_paths(), logger=logger, probe=probe
     )
     try:
         result = executor.execute(plan, selection=selected, on_progress=logger.progress)
@@ -377,9 +403,9 @@ def mode_clear_tags(client, config, logger) -> dict:
     return cleared
 
 
-def mode_ui_plan(client, config, run_id, logger, fs) -> dict:
+def mode_ui_plan(client, config, run_id, logger, fs, probe=None) -> dict:
     """Full plan payload for the plugin page."""
-    _, plan = mode_plan(client, config, run_id, logger, fs, write_files=True)
+    _, plan = mode_plan(client, config, run_id, logger, fs, write_files=True, probe=probe)
     return plan_to_dict(plan)
 
 
@@ -507,10 +533,12 @@ def run(payload: dict) -> Any:
     )
 
     if mode == "plan":
-        summary, _ = mode_plan(client, config, run_id, logger, fs)
+        summary, _ = mode_plan(client, config, run_id, logger, fs,
+                               probe=make_probe(client, config, logger))
         return summary
     if mode == "ui_plan":
-        return mode_ui_plan(client, config, run_id, logger, fs)
+        return mode_ui_plan(client, config, run_id, logger, fs,
+                            make_probe(client, config, logger))
     if mode == "ui_load":
         return mode_ui_load(config)
     if mode == "ui_config":
@@ -522,14 +550,16 @@ def run(payload: dict) -> Any:
     if mode == "purge_plans":
         return mode_purge_plans(config, args, logger)
     if mode in ("execute", "ui_execute"):
-        return mode_execute(client, config, run_id, logger, fs, args)
+        return mode_execute(client, config, run_id, logger, fs, args,
+                            make_probe(client, config, logger))
     if mode == "plan_execute":
-        summary, plan = mode_plan(client, config, run_id, logger, fs)
+        probe = make_probe(client, config, logger)
+        summary, plan = mode_plan(client, config, run_id, logger, fs, probe=probe)
         if not plan.is_executable:
             raise ExecutionAborted("G_RUN_CAP", plan.cap_verdict.reason)
         execution = mode_execute(
             client, config, run_id, logger, fs,
-            {"planFile": summary.get("planFile")},
+            {"planFile": summary.get("planFile")}, probe,
         )
         return {"plan": summary, "execution": execution}
 

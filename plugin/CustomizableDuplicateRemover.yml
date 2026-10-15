@@ -2,7 +2,7 @@ name: Customizable Duplicate Remover
 # Single line on purpose: the source-index builder extracts this with a line-oriented
 # grep, so a folded scalar would publish a literal ">-" as the description.
 description: "Resolves phash duplicate groups with a configurable ranking policy that treats codec as a first-class key, so an HEVC copy can be kept over a larger H.264 one. Plans first, deletes only after review."
-version: 0.3.0
+version: 0.4.0
 url: https://github.com/GrayAreaTools/CustomizableDuplicateRemover
 
 ui:
@@ -72,6 +72,26 @@ settings:
       says. Turn on only for a deliberate downscaling pipeline (e.g. 4K re-encoded to
       1080p HEVC). The plugin page cannot change this.
     type: BOOLEAN
+  visualCheck:
+    displayName: Visual Check
+    description: >-
+      G_VISUAL_MATCH. Compare the frames of each pair with ffmpeg before deleting, and
+      delete only pairs that match. A match also clears Quality Floor and Minimum
+      Duration blocks. Off by default; adds a few seconds per pair. The plugin page
+      cannot change this.
+    type: BOOLEAN
+  minVisualSimilarity:
+    displayName: Minimum Visual Similarity
+    description: >-
+      G_VISUAL_MATCH. Lowest SSIM (0.5-1.0) at which two files count as the same video.
+      The worst of the sampled points is used. Default 0.90.
+    type: NUMBER
+  visualMinDuration:
+    displayName: Visual Check Minimum Duration
+    description: >-
+      Clips shorter than this many seconds are never released by a visual match, even
+      when they match. Default 5.
+    type: NUMBER
   qualityFloorRatio:
     displayName: Quality Floor Ratio
     description: >-

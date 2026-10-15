@@ -18,6 +18,7 @@ from typing import Optional, Protocol, Sequence
 
 from config_schema import Config, normalise_codec
 from models import Candidate, SceneInfo, Verdict
+from visual import VisualProbe
 from ranking import ranks_strictly_better_codec
 
 
@@ -462,13 +463,14 @@ def evaluate_pair(
     library_paths: Sequence[str],
     fs: FileSystem,
     group_scenes: Sequence[SceneInfo] = (),
+    probe: Optional[VisualProbe] = None,
 ) -> list[Verdict]:
     """Every rail that applies to deleting `loser` in favour of `keeper`.
 
     `group_scenes` is every scene in the duplicate group, for the one rail whose answer
-    depends on more than the pair.
+    depends on more than the pair. `probe` is only used when `visualCheck` is on.
     """
-    return [
+    verdicts = [
         keeper_intact(keeper, fs),
         library_scope(loser, library_paths, fs),
         protected_path(loser, config, fs),
@@ -479,6 +481,76 @@ def evaluate_pair(
         quality_floor(keeper, loser, config),
         metadata_preserved(keeper.scene, loser.scene, config),
     ]
+    return visual_match(keeper, loser, config, probe, verdicts)
+
+
+# Rails whose answer is a proxy for "same content at acceptable quality". A visual match
+# measures that directly, so it may overrule them. Every other rail guards something a
+# picture cannot speak to (a missing keeper, a protected path, a stash-box conflict).
+VISUALLY_OVERRIDABLE = ("G_QUALITY_FLOOR", "G_MIN_DURATION")
+
+
+def visual_match(
+    keeper: Candidate,
+    loser: Candidate,
+    config: Config,
+    probe: Optional[VisualProbe],
+    verdicts: Sequence[Verdict],
+) -> list[Verdict]:
+    """`G_VISUAL_MATCH` — compare what the two files actually show.
+
+    With `visualCheck` on, a pair is deleted only if its frames match: SSIM at or above
+    `minVisualSimilarity`. A pair the probe cannot judge (aspect ratios differ, frames
+    are blank, ffmpeg fails) is blocked rather than waved through. A match also clears
+    `VISUALLY_OVERRIDABLE` blocks, except `G_MIN_DURATION` on clips shorter than
+    `visualMinDuration`.
+
+    Returns the full verdict list, with overridden verdicts replaced and this rail's
+    verdict appended. The probe runs only when its answer can change the outcome.
+    """
+    rail = "G_VISUAL_MATCH"
+    verdicts = list(verdicts)
+    if not config.visual_check or probe is None:
+        return verdicts + [_ok(rail, enabled=False)]
+
+    hard = [v for v in verdicts if not v.allowed and v.rail not in VISUALLY_OVERRIDABLE]
+    if hard:
+        return verdicts + [_ok(rail, skipped=f"already blocked by {hard[0].rail}")]
+
+    shortest = min(keeper.file.duration, loser.file.duration)
+    too_short = any(v.rail == "G_MIN_DURATION" and not v.allowed for v in verdicts) and (
+        shortest < config.visual_min_duration
+    )
+    if too_short:
+        return verdicts + [_ok(
+            rail, skipped=f"clip of {shortest:.1f}s is under visualMinDuration "
+            f"({config.visual_min_duration:.0f}s)",
+        )]
+
+    result = probe.compare(keeper.file, loser.file)
+    evidence = {"ssim": result.score, "samples": list(result.samples), "mode": result.mode}
+    if result.score is None:
+        return verdicts + [_block(
+            rail, f"Could not verify the frames match: {result.reason}.", **evidence,
+        )]
+    if result.score < config.min_visual_similarity:
+        return verdicts + [_block(
+            rail,
+            f"Frames differ: SSIM {result.score:.3f} is below the "
+            f"{config.min_visual_similarity:.3f} minimum ({result.mode}).",
+            **evidence,
+        )]
+
+    cleared = [
+        Verdict(
+            rail=v.rail, allowed=True, reason="",
+            context={**v.context, "overridden_by": rail, "overridden_reason": v.reason,
+                     "ssim": result.score},
+        )
+        if not v.allowed else v
+        for v in verdicts
+    ]
+    return cleared + [_ok(rail, **evidence)]
 
 
 def first_block(verdicts: Sequence[Verdict]) -> Optional[Verdict]:

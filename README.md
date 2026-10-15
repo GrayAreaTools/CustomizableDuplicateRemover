@@ -135,6 +135,7 @@ manual review rather than guessed at), `smallest_of_highest_resolution`,
 | `G_PROTECTED_PATHS` | Deleting under a path prefix you have declared off-limits. |
 | `G_DURATION` | A truncated encode replacing a complete file. Phashes are computed from a sample, so a partial file can match. |
 | `G_RESOLUTION` | Deleting a higher-resolution file to keep a lower-resolution one, independent of `rankOrder`. The page re-sends its selected preset each run, and a codec-first preset replaced 1080p/4K originals with 720p/360p re-encodes. Compares pixel count, so portrait and landscape copies count as equal. Off only when `allowResolutionDowngrade` is on. |
+| `G_VISUAL_MATCH` | With `visualCheck` on: deleting a file whose frames do not match the keeper's. ffmpeg decodes both at the same timestamps (the whole clip under 20s, otherwise five 2-second samples) and compares them with SSIM; the worst sample must reach `minVisualSimilarity`. A pair it cannot judge (different aspect ratios, blank frames, ffmpeg failure) is blocked. A match clears `G_QUALITY_FLOOR` and `G_MIN_DURATION` blocks, the latter only for clips of at least `visualMinDuration`. |
 | `G_MIN_DURATION` | Acting on a match involving a very short clip. A few seconds of video hashes to almost nothing, so short clips match unrelated full-length scenes. |
 | `G_STASH_ID_CONFLICT` | Merging scenes that a stash-box identifies as different. Any two scenes in the group linked to different IDs on the same endpoint block the group for manual review. |
 | `G_QUALITY_FLOOR` | A botched, over-compressed transcode winning on codec alone. Compares bits per pixel per frame, with a looser allowance across codecs since HEVC legitimately needs about half H.264's bitrate. |
@@ -190,6 +191,9 @@ default, because a typo in `rankOrder` must not quietly delete the wrong files.
 | `durationDiff` | NUMBER | `1.0` | Passed to `findDuplicateScenes` |
 | `durationTolerance` | NUMBER | `1.0` | `G_DURATION` tolerance in seconds |
 | `allowResolutionDowngrade` | BOOLEAN | `false` | Turns `G_RESOLUTION` off, for a deliberate downscaling pipeline. Settings only; the page cannot override it |
+| `visualCheck` | BOOLEAN | `false` | Turns on `G_VISUAL_MATCH`. Adds roughly 3-7 seconds per pair. Settings only |
+| `minVisualSimilarity` | NUMBER | `0.90` | `G_VISUAL_MATCH` threshold, 0.5-1.0. Settings only |
+| `visualMinDuration` | NUMBER | `5` | Shortest clip a visual match can release from `G_MIN_DURATION`. Settings only |
 | `minDuration` | NUMBER | `60` | `G_MIN_DURATION`: shortest clip, in seconds, the plugin will act on. Settings only; the page cannot override it |
 | `qualityFloorRatio` | NUMBER | `0.35` | `G_QUALITY_FLOOR` same-codec threshold |
 | `qualityFloorRatioCrossCodec` | NUMBER | `0.15` | `G_QUALITY_FLOOR` cross-codec threshold |

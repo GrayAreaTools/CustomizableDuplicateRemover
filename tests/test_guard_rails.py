@@ -622,7 +622,7 @@ def test_evaluate_pair_returns_a_verdict_per_rail(config):
     assert {v.rail for v in verdicts} == {
         "G_KEEPER_INTACT", "G_LIBRARY_SCOPE", "G_PROTECTED_PATHS",
         "G_DURATION", "G_RESOLUTION", "G_MIN_DURATION", "G_STASH_ID_CONFLICT",
-        "G_QUALITY_FLOOR", "G_METADATA",
+        "G_QUALITY_FLOOR", "G_METADATA", "G_VISUAL_MATCH",
     }
     assert first_block(verdicts) is None
 

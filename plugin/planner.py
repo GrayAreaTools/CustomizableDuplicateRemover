@@ -27,6 +27,7 @@ from models import (
     Verdict,
 )
 from ranking import rank_group
+from visual import VisualProbe
 
 
 def _action_for(
@@ -63,6 +64,7 @@ def plan_group(
     config: Config,
     library_paths: Sequence[str],
     fs: FileSystem,
+    probe: Optional[VisualProbe] = None,
 ) -> GroupPlan:
     """Resolve one duplicate group into a `GroupPlan`."""
     fingerprint = group_fingerprint(candidates)
@@ -106,7 +108,9 @@ def plan_group(
     for candidate in ranking.ordered:
         if candidate is keeper:
             continue
-        verdicts = evaluate_pair(keeper, candidate, config, library_paths, fs, group_scenes)
+        verdicts = evaluate_pair(
+            keeper, candidate, config, library_paths, fs, group_scenes, probe
+        )
         verdicts_by_key[candidate.key] = verdicts
         if all(v.allowed for v in verdicts):
             doomed.add(candidate.file.id)
@@ -259,6 +263,7 @@ def build_plan(
     library_file_count: int = 0,
     stash_version: str = "",
     on_progress: Optional[callable] = None,
+    probe: Optional[VisualProbe] = None,
 ) -> Plan:
     """Plan every group, then evaluate `G_RUN_CAP` over the whole run.
 
@@ -270,7 +275,9 @@ def build_plan(
 
     for index, candidates in enumerate(groups):
         try:
-            group_plans.append(plan_group(index, candidates, config, library_paths, fs))
+            group_plans.append(
+                plan_group(index, candidates, config, library_paths, fs, probe)
+            )
         except Exception as exc:  # one bad group must not end the run
             group_plans.append(
                 GroupPlan(

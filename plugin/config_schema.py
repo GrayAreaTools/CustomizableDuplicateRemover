@@ -56,6 +56,9 @@ DEFAULTS: dict[str, Any] = {
     "durationTolerance": 1.0,
     "minDuration": 60.0,
     "allowResolutionDowngrade": False,
+    "visualCheck": False,
+    "minVisualSimilarity": 0.90,
+    "visualMinDuration": 5.0,
     "qualityFloorRatio": 0.35,
     "qualityFloorRatioCrossCodec": 0.15,
     "protectedPaths": "",
@@ -240,6 +243,9 @@ class Config:
     duration_tolerance: float
     min_duration: float
     allow_resolution_downgrade: bool
+    visual_check: bool
+    min_visual_similarity: float
+    visual_min_duration: float
     quality_floor_ratio: float
     quality_floor_ratio_cross_codec: float
     protected_paths: tuple[str, ...]
@@ -264,6 +270,9 @@ class Config:
             "durationTolerance": self.duration_tolerance,
             "minDuration": self.min_duration,
             "allowResolutionDowngrade": self.allow_resolution_downgrade,
+            "visualCheck": self.visual_check,
+            "minVisualSimilarity": self.min_visual_similarity,
+            "visualMinDuration": self.visual_min_duration,
             "qualityFloorRatio": self.quality_floor_ratio,
             "qualityFloorRatioCrossCodec": self.quality_floor_ratio_cross_codec,
             "protectedPaths": list(self.protected_paths),
@@ -369,6 +378,17 @@ def parse_config(raw: Optional[dict], *, default_report_dir: str = "") -> Config
         allow_resolution_downgrade=_parse_bool(
             "allowResolutionDowngrade", settings.get("allowResolutionDowngrade"),
             DEFAULTS["allowResolutionDowngrade"],
+        ),
+        visual_check=_parse_bool(
+            "visualCheck", settings.get("visualCheck"), DEFAULTS["visualCheck"],
+        ),
+        min_visual_similarity=_parse_number(
+            "minVisualSimilarity", settings.get("minVisualSimilarity"),
+            DEFAULTS["minVisualSimilarity"], minimum=0.5, maximum=1.0,
+        ),
+        visual_min_duration=_parse_number(
+            "visualMinDuration", settings.get("visualMinDuration"),
+            DEFAULTS["visualMinDuration"], minimum=0.0, maximum=3600.0,
         ),
         quality_floor_ratio=_parse_number(
             "qualityFloorRatio", settings.get("qualityFloorRatio"),

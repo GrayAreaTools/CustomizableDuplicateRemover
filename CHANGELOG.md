@@ -5,7 +5,7 @@ Notable changes to this plugin. The format follows
 [Semantic Versioning](https://semver.org/). The published index appends the short
 commit hash to each version, e.g. `0.2.0-3da02d5`.
 
-## [0.4.0] - Unreleased
+## [0.4.0] - 2026-10-15
 
 ### Added
 

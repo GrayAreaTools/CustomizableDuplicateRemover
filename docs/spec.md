@@ -165,6 +165,7 @@ and continues to the next; it never aborts mid-group leaving a half-applied chan
 | `G_PROTECTED_PATHS` | Paths matching `protectedPaths` are never deleted; if a group's only viable keeper is protected, the group still resolves normally, but a protected loser downgrades the group to `SKIPPED`. | Losing irreplaceable originals kept in a specific folder. |
 | `G_DURATION` | Keeper and loser durations must agree within `durationTolerance` seconds (default 1.0). | Deleting a full-length file in favour of a truncated or partial encode that happens to share a phash. |
 | `G_RESOLUTION` | The loser must not have more pixels than the keeper, unless `allowResolutionDowngrade` is on. Independent of `rankOrder`. | A rank order or page preset replacing 1080p/4K originals with lower-resolution re-encodes. |
+| `G_VISUAL_MATCH` | With `visualCheck` on, the lowest SSIM across sampled windows must reach `minVisualSimilarity` (default 0.90). Unjudgeable pairs are blocked. A match overrides `G_QUALITY_FLOOR`, and `G_MIN_DURATION` for clips of at least `visualMinDuration`. Re-run before each deletion. | Deleting on proxy evidence (bitrate, phash) when the files differ or a re-encode is damaged; skipping genuine short duplicates. |
 | `G_MIN_DURATION` | The shorter of keeper and loser must be at least `minDuration` seconds (default 60). | Acting on a phash match between a clip of a few seconds and an unrelated full scene. |
 | `G_STASH_ID_CONFLICT` | The loser must not be linked to a different stash ID than any other scene in the group on the same endpoint. Checked against the whole group, because an unidentified keeper conflicts with nothing. | Merging two scenes a stash-box says are different, or merging two conflicting identifications into one scene. |
 | `G_QUALITY_FLOOR` | Keeper's bits-per-pixel-per-frame must be at least `qualityFloorRatio` (default 0.35) of the loser's, unless the keeper's codec ranks strictly better, in which case the allowance is `qualityFloorRatioCrossCodec` (default 0.15) to account for HEVC's efficiency. | Deleting a good file in favour of a botched, over-compressed transcode. |
@@ -244,6 +245,9 @@ accepted values — it never falls back to a default silently.
 | `durationDiff` | NUMBER | `1.0` | Passed to `findDuplicateScenes` |
 | `durationTolerance` | NUMBER | `1.0` | `G_DURATION` |
 | `allowResolutionDowngrade` | BOOLEAN | `false` | Disables `G_RESOLUTION`; not overridable from the page |
+| `visualCheck` | BOOLEAN | `false` | `G_VISUAL_MATCH`; not overridable from the page |
+| `minVisualSimilarity` | NUMBER | `0.90` | 0.5-1.0; not overridable |
+| `visualMinDuration` | NUMBER | `5` | Seconds; not overridable |
 | `minDuration` | NUMBER | `60` | `G_MIN_DURATION`; not overridable from the page |
 | `qualityFloorRatio` | NUMBER | `0.35` | `G_QUALITY_FLOOR` |
 | `qualityFloorRatioCrossCodec` | NUMBER | `0.15` | `G_QUALITY_FLOOR` |

@@ -143,7 +143,7 @@ def test_plan_group_records_a_verdict_for_every_loser(config):
     plan = plan_group(0, [keeper, loser], config, LIBRARY, fs_for(keeper, loser))
 
     assert plan.candidates[0].verdicts == []  # keeper is not evaluated against itself
-    assert len(plan.candidates[1].verdicts) == 9
+    assert len(plan.candidates[1].verdicts) == 10
 
 
 def test_build_plan_aggregates_and_evaluates_the_cap(config):

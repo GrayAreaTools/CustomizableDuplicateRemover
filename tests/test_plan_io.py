@@ -82,7 +82,7 @@ def test_round_trip_preserves_verdicts(config):
     assert {v.rail for v in verdicts} == {
         "G_KEEPER_INTACT", "G_LIBRARY_SCOPE", "G_PROTECTED_PATHS",
         "G_DURATION", "G_RESOLUTION", "G_MIN_DURATION", "G_STASH_ID_CONFLICT",
-        "G_QUALITY_FLOOR", "G_METADATA",
+        "G_QUALITY_FLOOR", "G_METADATA", "G_VISUAL_MATCH",
     }
     assert all(v.allowed for v in verdicts)
 

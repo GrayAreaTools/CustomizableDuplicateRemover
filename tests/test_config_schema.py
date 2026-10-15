@@ -256,3 +256,39 @@ def test_default_codec_preference_ranks_vc1_above_wmv3():
     assert order.index("wmv3") < order.index("msmpeg4v3")
     assert order.index("h264") < order.index("vc1")
     assert order[:4] == ("av1", "hevc", "h264", "vp9")
+
+
+def test_visual_check_defaults():
+    cfg = parse_config({})
+
+    assert cfg.visual_check is False
+    assert cfg.min_visual_similarity == 0.90
+    assert cfg.visual_min_duration == 5.0
+
+
+@pytest.mark.parametrize(
+    "setting,value",
+    [("minVisualSimilarity", 0.49), ("minVisualSimilarity", 1.01),
+     ("visualMinDuration", -1), ("visualMinDuration", 3601)],
+)
+def test_visual_settings_reject_out_of_range(setting, value):
+    with pytest.raises(ParseError) as excinfo:
+        parse_config({setting: value})
+
+    assert excinfo.value.code == "SETTING_OUT_OF_RANGE"
+    assert excinfo.value.context["setting"] == setting
+
+
+@pytest.mark.parametrize("setting", ["minVisualSimilarity", "visualMinDuration"])
+def test_visual_settings_reject_non_numbers(setting):
+    with pytest.raises(ParseError) as excinfo:
+        parse_config({setting: "high"})
+
+    assert excinfo.value.code == "SETTING_NOT_A_NUMBER"
+
+
+def test_visual_check_rejects_nonsense():
+    with pytest.raises(ParseError) as excinfo:
+        parse_config({"visualCheck": "maybe"})
+
+    assert excinfo.value.context["setting"] == "visualCheck"

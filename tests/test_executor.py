@@ -18,6 +18,7 @@ from guard_rails import group_fingerprint
 from models import GroupStatus
 from planner import build_plan
 from stash_client import StashError
+from visual import VisualResult
 
 LIBRARY = ["/media/library"]
 
@@ -439,6 +440,37 @@ def test_execution_refuses_a_downgrade_once_the_opt_out_is_turned_off(audit, con
     assert client.destroyed == []
     assert client.deleted_files == []
     assert client.merges == []
+
+
+class _Probe:
+    def __init__(self, score):
+        self.result = VisualResult(score, "", (score,), "sampled")
+        self.calls = 0
+
+    def compare(self, a, b):
+        self.calls += 1
+        return self.result
+
+
+def test_execution_refuses_when_frames_no_longer_match(audit):
+    """G_VISUAL_MATCH is re-run against the files immediately before deleting."""
+    cfg = parse_config({"confirmDestructive": True, "visualCheck": True})
+    scenes = [
+        raw_scene("10", [raw_file("1", codec="hevc", bit_rate=4_000_000)]),
+        raw_scene("20", [raw_file("2", codec="h264", bit_rate=8_000_000)]),
+    ]
+    groups = build_groups([scenes])
+    files = [c.file for g in groups for c in g]
+    fs = FakeFileSystem({f.path: f.size for f in files})
+    plan = build_plan("run1", groups, cfg, LIBRARY, fs, library_file_count=1000, probe=_Probe(0.98))
+    assert plan.groups[0].losers, "planning with a matching probe should approve the loser"
+    client = FakeClient(scenes)
+    live = _Probe(0.4)
+
+    Executor(client, cfg, audit, fs, LIBRARY, probe=live).execute(plan)
+
+    assert live.calls == 1
+    assert client.destroyed == [] and client.deleted_files == [] and client.merges == []
 
 
 def test_merge_values_union_preserves_the_keepers_own_metadata(audit, confirmed):

@@ -38,6 +38,7 @@ from models import (
 )
 from planner import Plan
 from stash_client import StashClient, StashError
+from visual import VisualProbe
 
 
 def human_size(value: int) -> str:
@@ -122,8 +123,10 @@ class Executor:
         fs: FileSystem,
         library_paths: Sequence[str],
         logger=None,
+        probe: Optional[VisualProbe] = None,
     ):
         self.client = client
+        self.probe = probe
         self.config = config
         self.audit = audit
         self.fs = fs
@@ -285,7 +288,7 @@ class Executor:
         for entry in targets:
             verdicts = evaluate_pair(
                 keeper, entry.candidate, self.config, self.library_paths, self.fs,
-                group_scenes,
+                group_scenes, self.probe,
             )
             blocked = first_block(verdicts)
             if blocked:

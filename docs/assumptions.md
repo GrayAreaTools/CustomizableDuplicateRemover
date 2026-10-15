@@ -226,3 +226,34 @@ Non-obvious decisions and the reasoning behind them.
   preset can.
 - **Recorded by:** Claude
 - **Date:** 2026-10-13
+
+- **Assumption:** `G_VISUAL_MATCH` scores a pair by the lowest SSIM across its samples,
+  starts at a 0.90 threshold, and blocks pairs it cannot judge.
+- **Why:** Calibration on 32 pairs from a real library: known duplicates (shared stash
+  ID) scored 0.897-0.997, clearly different scenes 0.09-0.74. One re-encode scored 0.99
+  at four points and 0.758 at the fifth; an average would have hidden that. 32 pairs set
+  the method, not a final threshold, so the threshold is a setting. A second run on
+  short clips agreed: 102 known duplicates had a median of 0.978, 40 unrelated pairings
+  never exceeded 0.43, and phash-matched different scenes reached 0.74, so 0.90 keeps a
+  margin above the hardest negatives seen. Blocking unjudgeable
+  pairs follows from opting in: the operator asked for visual confirmation.
+- **Recorded by:** Claude
+- **Date:** 2026-10-15
+
+- **Assumption:** A visual match may override `G_QUALITY_FLOOR` and `G_MIN_DURATION`,
+  and nothing else.
+- **Why:** Both are proxies for "same content at acceptable quality", which SSIM
+  measures directly. In calibration 5 of 12 quality-floor blocks scored 0.976 or more,
+  one at a bitrate ratio of 0.048. The other rails guard things a picture cannot speak
+  to, such as a missing keeper, a protected path or a stash-box conflict.
+- **Recorded by:** Claude
+- **Date:** 2026-10-15
+
+- **Assumption:** Clips under 20 seconds are compared over their whole length at 10
+  fps, and frames whose median luma range is under 24 are treated as unjudgeable.
+- **Why:** Sampling a few seconds of a short clip is too little evidence, while
+  decoding all of it is cheap. Black frames and plain title cards score near 1.0
+  against each other, so on very short clips a high SSIM would not show they are the
+  same video.
+- **Recorded by:** Claude
+- **Date:** 2026-10-15

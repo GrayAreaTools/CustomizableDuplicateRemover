@@ -159,6 +159,15 @@ class StashClient:
             if entry and entry.get("path")
         ]
 
+    def ffmpeg_path(self) -> str:
+        """The ffmpeg Stash itself uses; empty when Stash relies on its default lookup."""
+        data = self.call(
+            "query { configuration { general { ffmpegPath } } }",
+            operation="configuration",
+        )
+        general = ((data.get("configuration") or {}).get("general")) or {}
+        return str(general.get("ffmpegPath") or "")
+
     def scene_count(self) -> int:
         """Total scenes, used as the denominator for `maxFractionOfLibrary`."""
         data = self.call(

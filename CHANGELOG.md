@@ -5,6 +5,41 @@ Notable changes to this plugin. The format follows
 [Semantic Versioning](https://semver.org/). The published index appends the short
 commit hash to each version, e.g. `0.2.0-3da02d5`.
 
+## [0.4.0] - Unreleased
+
+### Added
+
+- `G_VISUAL_MATCH` / `visualCheck` (default off): compares what the two files show
+  before deleting, using the ffmpeg in Stash's container. Both are decoded at the same
+  timestamps and compared with SSIM, over the whole clip under 20 seconds and at five
+  2-second samples otherwise. The worst sample must reach `minVisualSimilarity` (default
+  0.90). Pairs it cannot judge are blocked: different aspect ratios, near-blank frames,
+  or an ffmpeg failure. Re-run immediately before each deletion.
+- A visual match clears `G_QUALITY_FLOOR`, whose bitrate ratio blocked visually
+  identical encodes, and `G_MIN_DURATION` for clips of at least `visualMinDuration`
+  (default 5 seconds), so short duplicates can be cleaned up.
+- All three settings are settings-only; the page cannot override them. If `visualCheck`
+  is on and ffmpeg cannot be found, the run fails with `VISUAL_CHECK_UNAVAILABLE`
+  instead of skipping the check.
+
+### Notes
+
+- Calibration on 32 pairs from a 1,883-group plan: known duplicates (same stash ID)
+  scored 0.897-0.997; clearly different scenes 0.09-0.74. 5 of 12 `G_QUALITY_FLOOR`
+  blocks scored 0.976 or higher, one at a bitrate ratio of 0.048. 6 of 10 stash-ID
+  conflicts were visually the same video, so most conflicts are identification errors
+  rather than different scenes.
+- Short clips, measured with whole-clip comparison: 102 known duplicates under 60
+  seconds (same stash ID) had a median SSIM of 0.978, and 86 reached 0.90. 40 pairings
+  of unrelated clips with the same aspect ratio and similar length never exceeded 0.43.
+  Phash-matched pairs that were different scenes scored up to 0.74, which is why the
+  default stays at 0.90 rather than lower.
+- Known limitation: copies padded or cropped by a few pixels (e.g. 1080x2066 vs
+  1080x2034) score low, because scaling both to one size shifts the picture. Those pairs
+  are blocked, not deleted.
+- Cost is about 1-2 seconds per short clip and 3-7 seconds per sampled long file on a
+  loaded server. The probe runs only where its answer can change the outcome.
+
 ## [0.3.0] - 2026-10-13
 
 ### Added

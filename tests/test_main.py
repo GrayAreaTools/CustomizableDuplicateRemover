@@ -7,7 +7,9 @@ import sys
 import pytest
 
 import main
+from config_schema import parse_config
 from models import ParseError
+from stash_client import StashError
 
 
 class StubClient:
@@ -44,6 +46,10 @@ class StubClient:
 
     def scenes_missing_phash(self):
         return 0
+
+    def ffmpeg_path(self):
+        self.ffmpeg_queried = True
+        return getattr(self, "ffmpeg", "")
 
 
 @pytest.fixture
@@ -169,6 +175,9 @@ def test_overrides_cannot_enable_destruction(monkeypatch, stub, tmp_path):
         ("durationTolerance", 3600),
         ("minDuration", 0),
         ("allowResolutionDowngrade", True),
+        ("visualCheck", True),
+        ("minVisualSimilarity", 0.5),
+        ("visualMinDuration", 0),
         ("metadataPolicy", "ignore"),
         ("maxDeletionsPerRun", 100000),
         ("maxFractionOfLibrary", 1.0),
@@ -208,7 +217,8 @@ def test_overrides_the_page_actually_sends_are_permitted(monkeypatch, stub, tmp_
 def test_overridable_settings_excludes_every_safety_control():
     forbidden = {"confirmDestructive", "maxDeletionsPerRun", "maxFractionOfLibrary",
                  "protectedPaths", "reportDir", "durationTolerance", "minDuration",
-                 "allowResolutionDowngrade",
+                 "allowResolutionDowngrade", "visualCheck", "minVisualSimilarity",
+                 "visualMinDuration",
                  "metadataPolicy",
                  "qualityFloorRatio", "qualityFloorRatioCrossCodec"}
 
@@ -430,3 +440,49 @@ def test_ui_config_schema_matches_what_the_saver_accepts(monkeypatch, stub, tmp_
     editable = set(schema["orderedListSettings"]) | set(schema["enumSettings"])
 
     assert editable == set(main.SAVEABLE_SETTINGS)
+
+
+def test_make_probe_is_none_and_skips_the_ffmpeg_lookup_when_visual_check_is_off():
+    client = StubClient()
+
+    assert main.make_probe(client, parse_config({}), main.log.Logger("t")) is None
+    assert not getattr(client, "ffmpeg_queried", False)
+
+
+def test_make_probe_uses_the_ffmpeg_stash_is_configured_with(monkeypatch):
+    client = StubClient()
+    client.ffmpeg = "/config/ffmpeg"
+    monkeypatch.setattr(main.shutil, "which", lambda name: name if name == "/config/ffmpeg" else None)
+
+    probe = main.make_probe(client, parse_config({"visualCheck": True}), main.log.Logger("t"))
+
+    assert probe.ffmpeg == "/config/ffmpeg"
+
+
+def test_make_probe_falls_back_to_ffmpeg_on_the_path(monkeypatch):
+    client = StubClient()
+    monkeypatch.setattr(main.shutil, "which", lambda name: "/usr/bin/ffmpeg" if name == "ffmpeg" else None)
+
+    probe = main.make_probe(client, parse_config({"visualCheck": True}), main.log.Logger("t"))
+
+    assert probe.ffmpeg == "/usr/bin/ffmpeg"
+
+
+def test_make_probe_fails_the_run_rather_than_silently_skipping_the_check(monkeypatch):
+    client = StubClient()
+    monkeypatch.setattr(main.shutil, "which", lambda name: None)
+
+    with pytest.raises(StashError) as excinfo:
+        main.make_probe(client, parse_config({"visualCheck": True}), main.log.Logger("t"))
+
+    assert excinfo.value.code == "VISUAL_CHECK_UNAVAILABLE"
+
+
+def test_plan_task_reports_a_missing_ffmpeg_as_a_coded_error(monkeypatch, stub, tmp_path):
+    stub.settings = {"reportDir": str(tmp_path), "visualCheck": True}
+    monkeypatch.setattr(main.shutil, "which", lambda name: None)
+
+    code, envelope = run_main(monkeypatch, payload("plan"))
+
+    assert code == 1
+    assert envelope["output"]["code"] == "VISUAL_CHECK_UNAVAILABLE"
